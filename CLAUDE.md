@@ -23,8 +23,10 @@ Los agentes viven en `.claude/agents/` y se invocan con el Agent tool.
 | `cto-architect`    | Director — lee specs, diseña, emite directrices. No escribe `.cs`. | Opus |
 | `cto-implementer`  | Ejecutor — implementa directrices exactas del architect. | Sonnet |
 | `cto-builder`      | Build & deploy — corre `scripts/build.ps1`, copia DLLs. | Haiku |
+| `cto-doc-keeper`   | Mantiene `docs/` actualizados con nuevas specs/decisiones. | Sonnet |
 
 Flujo típico: usuario → architect → implementer → builder → usuario.
+Cuando surge una decisión nueva que hay que persistir: architect → doc-keeper.
 
 Para features o cambios arquitectónicos, siempre empezar por `cto-architect`.
 
