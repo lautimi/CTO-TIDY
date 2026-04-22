@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet --version)",
+      "Bash(dotnet build *)",
+      "Bash(dotnet test *)",
+      "Bash(where msbuild *)",
+      "Read(//c/Program Files \\(x86\\)/Microsoft Visual Studio/**)",
+      "Read(//c/Program Files/Microsoft Visual Studio/**)",
+      "Bash(where dotnet *)",
+      "Bash(dotnet --list-sdks)",
+      "Read(//c/Program Files/Autodesk/AutoCAD 2020/**)",
+      "Bash(start \"\" \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\CTO_Especificaciones.html\")",
+      "Bash(\"C:\\\\Program Files \\(x86\\)\\\\Microsoft Visual Studio\\\\2022\\\\BuildTools\\\\MSBuild\\\\Current\\\\Bin\\\\MSBuild.exe\" src\\\\CtoAutocadAddin\\\\CtoAutocadAddin.csproj /p:Configuration=Release /p:Platform=x64 /v:minimal /nologo)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Program Files \\(x86\\)/**)",
+      "PowerShell($p = \\(Get-ChildItem \"C:\\\\Program Files\",\"C:\\\\Program Files \\(x86\\)\" -Filter MSBuild.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1\\).FullName; Write-Output $p)",
+      "PowerShell(\\(Get-Command msbuild -ErrorAction SilentlyContinue\\).Source; \\(Get-Command dotnet -ErrorAction SilentlyContinue\\).Source)",
+      "PowerShell(dotnet build \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\src\\\\CtoAutocadAddin\\\\CtoAutocadAddin.csproj\" -c Release -p:Platform=x64 -v:m --nologo 2>&1)",
+      "PowerShell(Copy-Item \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\src\\\\CtoAutocadAddin\\\\obj\\\\x64\\\\Release\\\\CtoAutocadAddin.dll\" \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\CtoAutocadAddin.dll\" -Force -ErrorAction SilentlyContinue; if \\($?\\) { \"OK\"; \\(Get-Item 'C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\CtoAutocadAddin.dll'\\).LastWriteTime } else { \"LOCKED\" })",
+      "PowerShell(Copy-Item \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\src\\\\CtoAutocadAddin\\\\bin\\\\x64\\\\Release\\\\CtoAutocadAddin.dll\" \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\CtoAutocadAddin.dll\" -Force; Copy-Item \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\src\\\\CtoAutocadAddin.Core\\\\bin\\\\x64\\\\Release\\\\netstandard2.0\\\\CtoAutocadAddin.Core.dll\" \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\CtoAutocadAddin.Core.dll\" -Force; \\(Get-Item \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\CtoAutocadAddin.dll\"\\).LastWriteTime)",
+      "PowerShell(\\(Get-Item \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\src\\\\CtoAutocadAddin\\\\obj\\\\x64\\\\Release\\\\CtoAutocadAddin.dll\"\\).LastWriteTime; Copy-Item \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\src\\\\CtoAutocadAddin\\\\obj\\\\x64\\\\Release\\\\CtoAutocadAddin.dll\" \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\CtoAutocadAddin.dll\" -Force -ErrorAction SilentlyContinue; if \\($?\\) { \"Copy OK -> \"; \\(Get-Item 'C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\CtoAutocadAddin.dll'\\).LastWriteTime } else { \"LOCKED\" })",
+      "PowerShell(Get-Process acad -ErrorAction SilentlyContinue | Select-Object Id, ProcessName; \"---\"; \\(Get-Item \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\CtoAutocadAddin.dll\"\\).LastWriteTime)"
+    ]
+  }
+}

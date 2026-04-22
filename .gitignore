@@ -1,0 +1,25 @@
+# Build artifacts
+bin/
+obj/
+
+# DLLs en raíz (output del build, no versionado)
+/CtoAutocadAddin.dll
+/CtoAutocadAddin.Core.dll
+/CtoAutocadAddin_nueva.dll
+
+# AutoCAD lock files y backups
+*.dwl
+*.dwl2
+*.bak
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Rider / ReSharper
+.idea/
+_ReSharper.Caches/
+
+# Logs
+*.log
