@@ -20,7 +20,16 @@
       "PowerShell(Copy-Item \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\src\\\\CtoAutocadAddin\\\\obj\\\\x64\\\\Release\\\\CtoAutocadAddin.dll\" \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\CtoAutocadAddin.dll\" -Force -ErrorAction SilentlyContinue; if \\($?\\) { \"OK\"; \\(Get-Item 'C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\CtoAutocadAddin.dll'\\).LastWriteTime } else { \"LOCKED\" })",
       "PowerShell(Copy-Item \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\src\\\\CtoAutocadAddin\\\\bin\\\\x64\\\\Release\\\\CtoAutocadAddin.dll\" \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\CtoAutocadAddin.dll\" -Force; Copy-Item \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\src\\\\CtoAutocadAddin.Core\\\\bin\\\\x64\\\\Release\\\\netstandard2.0\\\\CtoAutocadAddin.Core.dll\" \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\CtoAutocadAddin.Core.dll\" -Force; \\(Get-Item \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\CtoAutocadAddin.dll\"\\).LastWriteTime)",
       "PowerShell(\\(Get-Item \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\src\\\\CtoAutocadAddin\\\\obj\\\\x64\\\\Release\\\\CtoAutocadAddin.dll\"\\).LastWriteTime; Copy-Item \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\src\\\\CtoAutocadAddin\\\\obj\\\\x64\\\\Release\\\\CtoAutocadAddin.dll\" \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\CtoAutocadAddin.dll\" -Force -ErrorAction SilentlyContinue; if \\($?\\) { \"Copy OK -> \"; \\(Get-Item 'C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\CtoAutocadAddin.dll'\\).LastWriteTime } else { \"LOCKED\" })",
-      "PowerShell(Get-Process acad -ErrorAction SilentlyContinue | Select-Object Id, ProcessName; \"---\"; \\(Get-Item \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\CtoAutocadAddin.dll\"\\).LastWriteTime)"
+      "PowerShell(Get-Process acad -ErrorAction SilentlyContinue | Select-Object Id, ProcessName; \"---\"; \\(Get-Item \"C:\\\\Users\\\\KoppenGroup\\\\Desktop\\\\CTO EN AUTOCAD\\\\CtoAutocadAddin.dll\"\\).LastWriteTime)",
+      "Bash(GIT_AUTHOR_NAME=\"Tomas Brunner\" GIT_AUTHOR_EMAIL=\"tomas@koovra.local\" GIT_COMMITTER_NAME=\"Tomas Brunner\" GIT_COMMITTER_EMAIL=\"tomas@koovra.local\" git commit -m \"$\\(cat <<''''EOF'''':*)",
+      "Bash(gh --version)",
+      "Bash(gh auth:*)",
+      "Bash(ls \"/c/Program Files \\(x86\\)/GitHub CLI/\")",
+      "Read(//c/Users/KoppenGroup/Desktop/CTO EN AUTOCAD/$HOME/AppData/Local/Programs/**)",
+      "Bash(where gh.exe)",
+      "Bash(powershell -Command \"\\(Get-Command gh -ErrorAction SilentlyContinue\\).Source\")",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" --version)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" auth status)"
     ]
   }
 }
