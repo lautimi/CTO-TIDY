@@ -9,14 +9,21 @@ dimensionar las cajas.
 
 ## Quick start
 
-```powershell
-# 1. Compilar
-powershell -File scripts/build.ps1
+La DLL ya viene pre-compilada en la raíz del repo (`CtoAutocadAddin.dll`).
 
-# 2. En AutoCAD
-NETLOAD            # elegir CtoAutocadAddin.dll de la raíz
+```
+# En AutoCAD:
+NETLOAD            # elegir CtoAutocadAddin.dll de la raíz del repo
 CTO_PANEL          # abre el panel con todos los pasos
 ```
+
+### Recompilar (si modificás el código)
+
+```powershell
+powershell -File scripts/build.ps1
+```
+
+El script compila en Release x64 y actualiza la DLL en la raíz.
 
 ## Documentación
 
