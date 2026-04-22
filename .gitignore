@@ -2,10 +2,12 @@
 bin/
 obj/
 
-# DLLs en raíz (output del build, no versionado)
-/CtoAutocadAddin.dll
-/CtoAutocadAddin.Core.dll
+# DLLs antiguas (no versionadas)
 /CtoAutocadAddin_nueva.dll
+
+# NOTA: CtoAutocadAddin.dll y CtoAutocadAddin.Core.dll SÍ se versionan.
+# Quien clone el repo tiene la DLL lista para NETLOAD sin tener que compilar.
+# Se actualizan vía scripts/build.ps1 + commit.
 
 # AutoCAD lock files y backups
 *.dwl
