@@ -31,7 +31,9 @@
       "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" --version)",
       "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" auth status)",
       "Bash('/c/Program Files/GitHub CLI/gh.exe' pr create --base main --head feature/rename-agents-add-roman --title 'feat: rename agents + add roman \\(git-ops agent\\)' --body ' *)",
-      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" pr merge 7 --merge --delete-branch)"
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" pr merge 7 --merge --delete-branch)",
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' pr create --base main --head chore/session-permissions-post-rename --title 'chore: allowlist updates from agents rename session' --body ' *)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" pr list --repo lautimi/CTO-TIDY)"
     ]
   }
 }
