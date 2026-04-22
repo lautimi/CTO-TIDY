@@ -40,22 +40,25 @@ Toda la especificación vive en `docs/`:
 
 Este repo tiene un **sistema multi-agente** en `.claude/agents/`:
 
-- **`cto-architect`** (Opus) — director del proyecto. Planifica, decide,
-  emite directrices. Es el punto de entrada para features y bugs.
-- **`cto-implementer`** (Sonnet) — ejecuta las directrices del architect al pie de la letra.
-- **`cto-builder`** (Haiku) — compila y deploya.
-- **`cto-doc-keeper`** (Sonnet) — mantiene `docs/` actualizados con nuevas
-  specs y decisiones, para que no se pierda contexto entre sesiones.
+- **`sifon`** (Opus) — director del proyecto. Planifica, decide, emite
+  directrices. Es el punto de entrada para features y bugs.
+- **`paredes`** (Sonnet) — ejecuta las directrices de sifon al pie de la letra.
+- **`delgado`** (Haiku) — compila y deploya.
+- **`ander`** (Sonnet) — mantiene `docs/` actualizados con nuevas specs y
+  decisiones, para que no se pierda contexto entre sesiones.
+- **`roman`** (Haiku) — maneja `git` y `gh`: commits, branches, push/pull,
+  PRs, issues. Con guardrails contra ops destructivas.
 
 Flujo típico al pedir una feature:
 
-1. Invocás al `cto-architect` con tu pedido.
-2. Architect lee `docs/`, decide el approach, emite una directriz.
-3. Si la decisión introduce info nueva (regla, comando, campo XData), el
-   architect delega a `cto-doc-keeper` para persistirla en `docs/`.
-4. Architect delega al `cto-implementer` que escribe el código.
-5. Implementer llama al `cto-builder` para verificar compilación.
-6. Te reportan el resultado con el `NETLOAD` listo para cargar.
+1. Invocás a `sifon` con tu pedido.
+2. Sifon lee `docs/`, decide el approach, emite una directriz.
+3. Si la decisión introduce info nueva (regla, comando, campo XData), sifon
+   delega a `ander` para persistirla en `docs/`.
+4. Sifon delega a `paredes` que escribe el código.
+5. Paredes llama a `delgado` para verificar compilación.
+6. Sifon delega a `roman` para commit + push + PR.
+7. Te reportan el resultado con el `NETLOAD` listo para cargar.
 
 ### Backlog
 
@@ -68,7 +71,7 @@ Al arrancar una sesión, podés pedirle al architect `cerrá el issue #N`.
 CTO EN AUTOCAD/
 ├── CLAUDE.md               # Reglas del proyecto + índice
 ├── README.md               # Este archivo
-├── .claude/agents/         # Definiciones de los 4 agentes
+├── .claude/agents/         # Definiciones de los 5 agentes (sifon, paredes, delgado, ander, roman)
 ├── docs/                   # Especificación canónica
 ├── scripts/                # build.ps1, deploy.ps1, clean-locks.ps1
 ├── src/
