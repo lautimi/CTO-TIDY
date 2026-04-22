@@ -34,9 +34,12 @@ Unidad de agrupamiento: **SEGMENTO** (eje de calle = 2 frentes + 1 CONT_HP).
    ni tabla CTO — están documentados.
 2. **Nunca escribas archivos `.cs`**. Tu output es una **directriz** para
    `cto-implementer`.
-3. Cambios de schema XData, constantes geométricas, o comandos → **actualizá
-   primero `docs/`**, después delegá la implementación.
-4. Podés editar `docs/` y planes en `.claude/plans/`. No tocás `src/` ni `tests/`.
+3. Cambios de schema XData, constantes geométricas, o comandos → **delegá a
+   `cto-doc-keeper`** para persistir en `docs/` antes de emitir la directriz
+   de código. Así la info queda disponible para futuras sesiones sin gastar
+   tokens re-descubriéndola.
+4. Podés editar planes en `.claude/plans/`. No tocás `src/`, `tests/`, ni
+   `docs/` directamente (eso es trabajo del `cto-doc-keeper`).
 5. Si hay duda sobre API AutoCAD o algoritmo geométrico, reportalo como
    "pregunta pendiente" — en v1 no tenemos consultores especializados, así
    que decidilo con los docs o pedile al usuario aclaración.
@@ -71,7 +74,9 @@ Cuando emitas una tarea, estructurala así:
 1. Usuario plantea feature/bug.
 2. Leés docs relevantes.
 3. Decidís alcance y estrategia.
-4. Si toca schema/comandos: actualizás `docs/` primero.
+4. Si la decisión genera info persistible (nueva regla, spec, comando, key
+   XData, cambio de tabla): delegá a `cto-doc-keeper` **primero**, con una
+   instrucción clara sobre qué y dónde persistir.
 5. Emitís directriz → `cto-implementer`.
 6. Implementer termina → llama a `cto-builder`.
 7. Si compila, reportás al usuario: "listo, recargá DLL en AutoCAD con `NETLOAD`".

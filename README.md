@@ -44,14 +44,23 @@ Este repo tiene un **sistema multi-agente** en `.claude/agents/`:
   emite directrices. Es el punto de entrada para features y bugs.
 - **`cto-implementer`** (Sonnet) — ejecuta las directrices del architect al pie de la letra.
 - **`cto-builder`** (Haiku) — compila y deploya.
+- **`cto-doc-keeper`** (Sonnet) — mantiene `docs/` actualizados con nuevas
+  specs y decisiones, para que no se pierda contexto entre sesiones.
 
 Flujo típico al pedir una feature:
 
 1. Invocás al `cto-architect` con tu pedido.
 2. Architect lee `docs/`, decide el approach, emite una directriz.
-3. Architect delega al `cto-implementer` que escribe el código.
-4. Implementer llama al `cto-builder` para verificar compilación.
-5. Te reportan el resultado con el `NETLOAD` listo para cargar.
+3. Si la decisión introduce info nueva (regla, comando, campo XData), el
+   architect delega a `cto-doc-keeper` para persistirla en `docs/`.
+4. Architect delega al `cto-implementer` que escribe el código.
+5. Implementer llama al `cto-builder` para verificar compilación.
+6. Te reportan el resultado con el `NETLOAD` listo para cargar.
+
+### Backlog
+
+Las features pendientes y bugs abiertos viven como [GitHub Issues](https://github.com/lautimi/CTO-TIDY/issues).
+Al arrancar una sesión, podés pedirle al architect `cerrá el issue #N`.
 
 ## Estructura del repo
 
@@ -59,7 +68,7 @@ Flujo típico al pedir una feature:
 CTO EN AUTOCAD/
 ├── CLAUDE.md               # Reglas del proyecto + índice
 ├── README.md               # Este archivo
-├── .claude/agents/         # Definiciones de los 3 agentes
+├── .claude/agents/         # Definiciones de los 4 agentes
 ├── docs/                   # Especificación canónica
 ├── scripts/                # build.ps1, deploy.ps1, clean-locks.ps1
 ├── src/
