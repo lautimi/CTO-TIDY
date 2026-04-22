@@ -20,15 +20,17 @@ Los agentes viven en `.claude/agents/` y se invocan con el Agent tool.
 
 | Agente | Rol | Modelo |
 |---|---|---|
-| `cto-architect`    | Director — lee specs, diseña, emite directrices. No escribe `.cs`. | Opus |
-| `cto-implementer`  | Ejecutor — implementa directrices exactas del architect. | Sonnet |
-| `cto-builder`      | Build & deploy — corre `scripts/build.ps1`, copia DLLs. | Haiku |
-| `cto-doc-keeper`   | Mantiene `docs/` actualizados con nuevas specs/decisiones. | Sonnet |
+| `sifon`    | Director — lee specs, diseña, emite directrices. No escribe `.cs`. | Opus |
+| `paredes`  | Ejecutor — implementa directrices exactas de sifon. | Sonnet |
+| `delgado`  | Build & deploy — corre `scripts/build.ps1`, copia DLLs. | Haiku |
+| `ander`    | Mantiene `docs/` actualizados con nuevas specs/decisiones. | Sonnet |
+| `roman`    | Git & GitHub — commits, branches, PRs, issues. | Haiku |
 
-Flujo típico: usuario → architect → implementer → builder → usuario.
-Cuando surge una decisión nueva que hay que persistir: architect → doc-keeper.
+Flujo típico: usuario → sifon → paredes → delgado → roman → usuario.
+- Si surge una decisión nueva que hay que persistir: sifon → ander.
+- Para cualquier operación `git`/`gh`: sifon → roman.
 
-Para features o cambios arquitectónicos, siempre empezar por `cto-architect`.
+Para features o cambios arquitectónicos, siempre empezar por `sifon`.
 
 ## Scripts
 
