@@ -68,6 +68,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             AddRow(40);  // paso 5
             AddRow(34);  // radio
             AddRow(32);  // inspeccionar (diagnóstico)
+            AddRow(32);  // configuración
             AddRow(42);  // run all
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // log
 
@@ -150,6 +151,25 @@ namespace Koovra.Cto.AutocadAddin.UI
             };
             layout.Controls.Add(btnInspect, 0, 7);
 
+            // Configuración
+            var btnConfig = new Button
+            {
+                Text      = "⚙  Configuración",
+                Dock      = DockStyle.Fill,
+                BackColor = Color.FromArgb(30, 60, 80),
+                ForeColor = Color.FromArgb(0, 191, 255),
+                FlatStyle = FlatStyle.Flat,
+                Font      = new WinFont("Segoe UI", 8.5f),
+                Margin    = new Padding(0, 2, 0, 2),
+            };
+            btnConfig.FlatAppearance.BorderSize = 0;
+            btnConfig.Click += (s, e) =>
+            {
+                var doc = AcApp.DocumentManager.MdiActiveDocument;
+                doc?.SendStringToExecute("CTO_CONFIG ", true, false, false);
+            };
+            layout.Controls.Add(btnConfig, 0, 8);
+
             // Ejecutar Todo
             _btnRunAll = new Button
             {
@@ -163,7 +183,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             };
             _btnRunAll.FlatAppearance.BorderSize = 0;
             _btnRunAll.Click += (s, e) => RunAll();
-            layout.Controls.Add(_btnRunAll, 0, 8);
+            layout.Controls.Add(_btnRunAll, 0, 9);
 
             // Log
             _log = new RichTextBox
@@ -176,7 +196,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 ScrollBars  = RichTextBoxScrollBars.Vertical,
                 BorderStyle = BorderStyle.None,
             };
-            layout.Controls.Add(_log, 0, 9);
+            layout.Controls.Add(_log, 0, 10);
 
             Controls.Add(layout);
             AppendLog("Panel listo. Ejecutá los pasos en orden o usá 'Ejecutar Todo'.", LogLevel.Info);
@@ -214,13 +234,14 @@ namespace Koovra.Cto.AutocadAddin.UI
         private StepResult StepSeleccionar()
         {
             var ed = AcApp.DocumentManager.MdiActiveDocument.Editor;
-            var ids = SelectionService.SelectAllOnLayer(ed, "POSTE_*", "INSERT");
+            string poleLayer = AddinSettings.Current.PoleLayerName;
+            var ids = SelectionService.SelectAllOnLayer(ed, poleLayer, "INSERT");
 
             if (ids.Count == 0)
             {
                 _rowPostes.SetStatus(StepStatus.Warning);
                 _rowPostes.SetInfo("0");
-                return new StepResult(false, "No se encontraron bloques en capas POSTE_*");
+                return new StepResult(false, $"No se encontraron bloques en capa '{poleLayer}'");
             }
 
             var arr = new ObjectId[ids.Count];

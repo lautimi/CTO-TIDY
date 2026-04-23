@@ -146,20 +146,44 @@ namespace Koovra.Cto.AutocadAddin.Commands
                     continue;
                 }
 
-                // Ranking por midpoint del SEGMENTO (centrales primero).
+                // Ranking por midpoint del SEGMENTO (centrales primero) + sub-criterio binario ObservationCodes.
                 Point3d? mid = GetCurveMidpoint(tr, db, segId);
+                var obsCodes = AddinSettings.Current.ObservationCodes;
 
                 var sortedPoles = priPoles
-                    .Select(pid => new
+                    .Select(pid =>
                     {
-                        Id   = pid,
-                        Dist = mid.HasValue
+                        double dist = mid.HasValue
                             ? Extensions.GetInsertionOrPosition(
                                   (Entity)tr.GetObject(pid, OpenMode.ForRead))
                                 .DistanceTo(mid.Value)
-                            : 0.0,
+                            : 0.0;
+                        bool tieneObs = false;
+                        if (obsCodes != null && obsCodes.Count > 0)
+                        {
+                            string csv = XDataManager.GetString(tr, pid, XDataKeys.COMENTARIOS) ?? string.Empty;
+                            if (!string.IsNullOrEmpty(csv))
+                            {
+                                string[] tokens = csv.Split(',');
+                                foreach (string token in tokens)
+                                {
+                                    string t = token.Trim();
+                                    foreach (string code in obsCodes)
+                                    {
+                                        if (string.Equals(t, code.Trim(), System.StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            tieneObs = true;
+                                            break;
+                                        }
+                                    }
+                                    if (tieneObs) break;
+                                }
+                            }
+                        }
+                        return new { Id = pid, Dist = dist, TieneObs = tieneObs };
                     })
-                    .OrderBy(x => x.Dist)
+                    .OrderBy(x => x.TieneObs ? 1 : 0)
+                    .ThenBy(x => x.Dist)
                     .Select(x => x.Id)
                     .ToList();
 
