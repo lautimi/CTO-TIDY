@@ -8,12 +8,18 @@ namespace Koovra.Cto.AutocadAddin.Services
 {
     /// <summary>
     /// Identifica el FRENTE DE MANZANA al que pertenece un punto sobre el borde del polígono
-    /// y calcula su largo real (sumatoria de segmentos entre dos esquinas consecutivas).
+    /// y calcula su largo real.
     ///
     /// Una manzana (LWPOLYLINE cerrada) tiene N frentes = N esquinas. Las esquinas se detectan
     /// como vértices donde la polilínea dobla > <see cref="CORNER_ANGLE_THRESHOLD_DEG"/> grados.
     /// Los vértices con cambio angular menor son "puntos intermedios" de dibujo y se absorben
     /// dentro del mismo frente.
+    ///
+    /// Cuando se pasa <c>segmentCurve</c> (la curva del segmento de calle asociado al poste),
+    /// el largo se calcula proyectando los dos vértices-esquina del frente sobre esa curva y
+    /// midiendo la distancia entre ambas proyecciones a lo largo de la curva. Este enfoque evita
+    /// acumular edges intermedios de dibujo que distorsionan la medición.
+    /// Sin curva (o con <c>null</c>), se usa el fallback: sumatoria de edges entre esquinas.
     /// </summary>
     public static class FrenteManzanaCalculator
     {
@@ -37,8 +43,20 @@ namespace Koovra.Cto.AutocadAddin.Services
         /// Devuelve el frente al que pertenece <paramref name="pointOnEdge"/>.
         /// El punto debería estar sobre el borde (típicamente es el
         /// <c>PointOnManzana</c> devuelto por el raycast del PoleSegmentAssociator).
+        /// Usa el fallback de suma de edges (sin curva de segmento).
         /// </summary>
         public static Outcome ComputeFrente(Polyline manzana, Point3d pointOnEdge)
+        {
+            return ComputeFrente(manzana, pointOnEdge, segmentCurve: null);
+        }
+
+        /// <summary>
+        /// Devuelve el frente al que pertenece <paramref name="pointOnEdge"/>.
+        /// Cuando <paramref name="segmentCurve"/> no es null, el largo se obtiene proyectando
+        /// los dos vértices-esquina sobre la curva del segmento de calle y midiendo la distancia
+        /// entre proyecciones a lo largo de esa curva. Si es null, se usa la sumatoria de edges.
+        /// </summary>
+        public static Outcome ComputeFrente(Polyline manzana, Point3d pointOnEdge, Curve segmentCurve)
         {
             var empty = new Outcome { Found = false };
             if (manzana == null) return empty;
@@ -73,15 +91,30 @@ namespace Koovra.Cto.AutocadAddin.Services
             int startCorner = FindPrevCorner(corners, segIdx, nVerts);
             int endCorner   = FindNextCorner(corners, segIdx, nVerts);
 
-            // 4. Largo: suma de segmentos desde startCorner hasta endCorner (circular).
-            double largo = 0.0;
-            int j = startCorner;
-            int safety = 0;
-            while (j != endCorner && safety++ < nVerts + 1)
+            // 4. Largo: proyección sobre curva del segmento, o suma de edges como fallback.
+            double largo;
+            if (segmentCurve != null)
             {
-                LineSegment3d s = manzana.GetLineSegmentAt(j);
-                largo += (s.EndPoint - s.StartPoint).Length;
-                j = (j + 1) % nVerts;
+                Point3d cA    = manzana.GetPoint3dAt(startCorner);
+                Point3d cB    = manzana.GetPoint3dAt(endCorner);
+                Point3d projA = segmentCurve.GetClosestPointTo(cA, false);
+                Point3d projB = segmentCurve.GetClosestPointTo(cB, false);
+                double  dA    = segmentCurve.GetDistAtPoint(projA);
+                double  dB    = segmentCurve.GetDistAtPoint(projB);
+                largo = Math.Abs(dB - dA);
+            }
+            else
+            {
+                // Fallback: algoritmo viejo (suma de edges entre esquinas)
+                largo = 0.0;
+                int j = startCorner;
+                int safety = 0;
+                while (j != endCorner && safety++ < nVerts + 1)
+                {
+                    LineSegment3d s = manzana.GetLineSegmentAt(j);
+                    largo += (s.EndPoint - s.StartPoint).Length;
+                    j = (j + 1) % nVerts;
+                }
             }
 
             int frenteIdx = corners.IndexOf(startCorner);
