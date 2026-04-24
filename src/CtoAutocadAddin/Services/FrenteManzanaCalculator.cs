@@ -37,6 +37,10 @@ namespace Koovra.Cto.AutocadAddin.Services
             public int    EndCornerIdx;     // índice del vértice-esquina final
             public double Largo;            // sumatoria de largos de segmentos entre ambas esquinas
             public bool   Found;            // false si la manzana no es válida o no pudo resolver
+            public Point3d? CornerA;        // vértice-esquina inicial en la manzana (startCorner)
+            public Point3d? CornerB;        // vértice-esquina final en la manzana (endCorner)
+            public Point3d? ProjA;          // proyección de CornerA sobre el segmento de calle
+            public Point3d? ProjB;          // proyección de CornerB sobre el segmento de calle
         }
 
         /// <summary>
@@ -93,15 +97,20 @@ namespace Koovra.Cto.AutocadAddin.Services
 
             // 4. Largo: proyección sobre curva del segmento, o suma de edges como fallback.
             double largo;
+            Point3d cornerA = manzana.GetPoint3dAt(startCorner);
+            Point3d cornerB = manzana.GetPoint3dAt(endCorner);
+            Point3d? projA  = null;
+            Point3d? projB  = null;
+
             if (segmentCurve != null)
             {
-                Point3d cA    = manzana.GetPoint3dAt(startCorner);
-                Point3d cB    = manzana.GetPoint3dAt(endCorner);
-                Point3d projA = segmentCurve.GetClosestPointTo(cA, false);
-                Point3d projB = segmentCurve.GetClosestPointTo(cB, false);
-                double  dA    = segmentCurve.GetDistAtPoint(projA);
-                double  dB    = segmentCurve.GetDistAtPoint(projB);
-                largo = Math.Abs(dB - dA);
+                Point3d pA = segmentCurve.GetClosestPointTo(cornerA, false);
+                Point3d pB = segmentCurve.GetClosestPointTo(cornerB, false);
+                double  dA = segmentCurve.GetDistAtPoint(pA);
+                double  dB = segmentCurve.GetDistAtPoint(pB);
+                largo  = Math.Abs(dB - dA);
+                projA  = pA;
+                projB  = pB;
             }
             else
             {
@@ -127,6 +136,10 @@ namespace Koovra.Cto.AutocadAddin.Services
                 StartCornerIdx = startCorner,
                 EndCornerIdx   = endCorner,
                 Largo          = largo,
+                CornerA        = cornerA,
+                CornerB        = cornerB,
+                ProjA          = projA,
+                ProjB          = projB,
             };
         }
 

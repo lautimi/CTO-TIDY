@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
@@ -85,6 +86,8 @@ namespace Koovra.Cto.AutocadAddin.Commands
                 pm.Start($"Asociando {polesIds.Length} postes...");
                 pm.SetLimit(polesIds.Length);
 
+                bool layerEnsured = false;
+
                 foreach (ObjectId poleId in polesIds)
                 {
                     // 1. Asociación al SEGMENTO (para HP y fallback)
@@ -114,6 +117,50 @@ namespace Koovra.Cto.AutocadAddin.Commands
                             {
                                 idFrente    = $"{manzanaPl.Handle}#{fo.FrenteIndex}";
                                 largoFrente = fo.Largo;
+
+                                if (fo.CornerA.HasValue && fo.CornerB.HasValue)
+                                {
+                                    const string auditLayer = "CTO_AUDIT_FRENTES";
+
+                                    if (!layerEnsured)
+                                    {
+                                        var layerTable = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
+                                        if (!layerTable.Has(auditLayer))
+                                        {
+                                            layerTable.UpgradeOpen();
+                                            var lr = new LayerTableRecord
+                                            {
+                                                Name  = auditLayer,
+                                                Color = Color.FromColorIndex(ColorMethod.ByAci, 6),
+                                            };
+                                            layerTable.Add(lr);
+                                            tr.AddNewlyCreatedDBObject(lr, true);
+                                        }
+                                        layerEnsured = true;
+                                    }
+
+                                    var bt  = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                                    var ms  = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
+
+                                    void AddEntity(Entity e)
+                                    {
+                                        e.Layer = auditLayer;
+                                        ms.AppendEntity(e);
+                                        tr.AddNewlyCreatedDBObject(e, true);
+                                    }
+
+                                    AddEntity(new Circle(fo.CornerA.Value, Vector3d.ZAxis, 1.0));
+                                    AddEntity(new Circle(fo.CornerB.Value, Vector3d.ZAxis, 1.0));
+
+                                    if (fo.ProjA.HasValue && fo.ProjB.HasValue)
+                                    {
+                                        AddEntity(new Circle(fo.ProjA.Value, Vector3d.ZAxis, 1.0));
+                                        AddEntity(new Circle(fo.ProjB.Value, Vector3d.ZAxis, 1.0));
+                                        AddEntity(new Line(fo.CornerA.Value, fo.ProjA.Value));
+                                        AddEntity(new Line(fo.CornerB.Value, fo.ProjB.Value));
+                                        AddEntity(new Line(fo.ProjA.Value,   fo.ProjB.Value));
+                                    }
+                                }
                             }
                         }
                     }
