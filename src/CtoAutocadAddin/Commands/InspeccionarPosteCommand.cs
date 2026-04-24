@@ -28,7 +28,7 @@ namespace Koovra.Cto.AutocadAddin.Commands
 
             var pso = new PromptEntityOptions("\nSeleccioná un poste: ");
             pso.SetRejectMessage("\nDebe ser una entidad.");
-            pso.AddAllowedClass(typeof(Entity), true);
+            pso.AddAllowedClass(typeof(Entity), false);
             PromptEntityResult per = ed.GetEntity(pso);
             if (per.Status != PromptStatus.OK) return;
 
