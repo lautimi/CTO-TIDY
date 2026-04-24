@@ -21,3 +21,4 @@ using Autodesk.AutoCAD.Runtime;
 [assembly: CommandClass(typeof(Koovra.Cto.AutocadAddin.Commands.DesplegarCtosCommand))]
 [assembly: CommandClass(typeof(Koovra.Cto.AutocadAddin.Commands.RunAllCommand))]
 [assembly: CommandClass(typeof(Koovra.Cto.AutocadAddin.Commands.ConfigCommand))]
+[assembly: CommandClass(typeof(Koovra.Cto.AutocadAddin.Commands.InspeccionarPosteCommand))]
