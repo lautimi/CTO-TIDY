@@ -104,8 +104,12 @@ namespace Koovra.Cto.AutocadAddin.Commands
                         var manzanaPl = tr.GetObject(outcome.ManzanaObjectId, OpenMode.ForRead) as Polyline;
                         if (manzanaPl != null)
                         {
+                            Curve segCurve = null;
+                            if (!outcome.SegmentObjectId.IsNull)
+                                segCurve = tr.GetObject(outcome.SegmentObjectId, OpenMode.ForRead) as Curve;
+
                             var fo = FrenteManzanaCalculator.ComputeFrente(
-                                manzanaPl, outcome.PointOnManzana.Value);
+                                manzanaPl, outcome.PointOnManzana.Value, segCurve);
                             if (fo.Found)
                             {
                                 idFrente    = $"{manzanaPl.Handle}#{fo.FrenteIndex}";
