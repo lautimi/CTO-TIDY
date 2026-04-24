@@ -18,14 +18,17 @@ namespace Koovra.Cto.AutocadAddin.Models
 
         public double TextBufferRadius { get; set; } = Geometry.GeometryConstants.TEXT_BUFFER_DEFAULT;
 
-        // Layer del cual SelectionService filtra postes. No persiste entre sesiones.
-        public string PoleLayerName { get; set; } = DefaultPoleLayerName;
+        // Layers de los cuales SelectionService filtra postes. No persiste entre sesiones.
+        public List<string> PoleLayerNames { get; set; } = BuildDefaultPoleLayerNames();
 
         // Códigos que, si aparecen en COMENTARIOS de un poste, lo empujan al final del ranking PRIORIDAD.
         // No persiste entre sesiones.
         public List<string> ObservationCodes { get; set; } = BuildDefaultObservationCodes();
 
-        private const string DefaultPoleLayerName = "POSTE_*";
+        public static List<string> BuildDefaultPoleLayerNames()
+        {
+            return new List<string> { "POSTE_*" };
+        }
 
         public static List<string> BuildDefaultObservationCodes()
         {
@@ -39,7 +42,7 @@ namespace Koovra.Cto.AutocadAddin.Models
 
         public void ResetToDefaults()
         {
-            PoleLayerName    = DefaultPoleLayerName;
+            PoleLayerNames   = BuildDefaultPoleLayerNames();
             ObservationCodes = BuildDefaultObservationCodes();
         }
     }

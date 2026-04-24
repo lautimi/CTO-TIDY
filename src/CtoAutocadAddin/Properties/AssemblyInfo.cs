@@ -12,6 +12,7 @@ using Autodesk.AutoCAD.Runtime;
 [assembly: ComVisible(false)]
 [assembly: Guid("a1b2c3d4-0001-4000-8000-000000000001")]
 
+[assembly: ExtensionApplication(typeof(Koovra.Cto.AutocadAddin.AddinApplication))]
 [assembly: CommandClass(typeof(Koovra.Cto.AutocadAddin.Commands.AsociarPostesCommand))]
 [assembly: CommandClass(typeof(Koovra.Cto.AutocadAddin.Commands.PanelCommand))]
 [assembly: CommandClass(typeof(Koovra.Cto.AutocadAddin.Commands.LeerComentariosCommand))]
@@ -19,3 +20,4 @@ using Autodesk.AutoCAD.Runtime;
 [assembly: CommandClass(typeof(Koovra.Cto.AutocadAddin.Commands.CalcularCtosCommand))]
 [assembly: CommandClass(typeof(Koovra.Cto.AutocadAddin.Commands.DesplegarCtosCommand))]
 [assembly: CommandClass(typeof(Koovra.Cto.AutocadAddin.Commands.RunAllCommand))]
+[assembly: CommandClass(typeof(Koovra.Cto.AutocadAddin.Commands.ConfigCommand))]
