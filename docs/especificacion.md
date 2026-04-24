@@ -119,7 +119,44 @@ Todo el flujo se puede correr de una con `CTO_RUN_ALL` o desde el panel (`CTO_PA
 
 ---
 
-## 9. Qué NO hacer
+## 9. Settings runtime
+
+Singleton `AddinSettings.Current` (`Models/AddinSettings.cs`). **No persisten entre sesiones** — viven en memoria y se resetean al cerrar AutoCAD.
+
+### Campos existentes
+
+- `BlockNameDesp` — nombre del bloque para C_DESP (default: `CAJA_ACCESO_b`).
+- `BlockNameCrec` — nombre del bloque para C_CREC (default: `CAJA_CRECIMIENTO`).
+- `CtoLayerName`  — capa donde se insertan los bloques (default: `CTO`).
+
+### Campos agregados (desde 2026-04-22)
+
+- `string PoleLayerName` — layer del cual `SelectionService` filtra postes. Default literal del código: no hay un default único en `SelectionService`; el servicio usa `SelectAllOnLayer` con el nombre que le pasan. El campo provee el valor configurable en tiempo de ejecución.
+- `List<string> ObservationCodes` — códigos que, si aparecen en el XData `COMMENTS_CSV` de un poste, lo empujan al final del ranking de candidatos PRIORIDAD. Seed inicial (igual a `KnownCodes` en `CommentParser.cs`):
+
+```
+"VEG", "FDR", "SUBIDA-BAJADA", "SUBIDA", "BAJADA",
+"FM", "OCUPADO", "SC", "APOYO", "INCLINADO",
+"PRIORIDAD", "SECUNDARIA", "BUENO", "MALO"
+```
+
+### Sub-criterio de ranking en CtoDistributor
+
+> Desde 2026-04-22: postes cuyo `COMMENTS_CSV` contenga al menos un código de `AddinSettings.Current.ObservationCodes` (match case-insensitive, trim, split por coma) se ordenan al final dentro de cada grupo de candidatos PRIORIDAD.
+
+Orden: `OrderBy(tieneObs ? 1 : 0).ThenBy(distMidpoint)`.
+
+**Nunca se descartan** — si faltan candidatos sin observaciones, los observados reciben caja igual.
+
+Implementado en `src/CtoAutocadAddin/Commands/CalcularCtosCommand.cs` (~línea 149).
+
+### Capas hardcoded (no expuestas en UI)
+
+- `"OBSERVACIONES"` — sigue hardcoded en `TextBufferCollector` y `SelectionService`. No se expone en `SettingsDialog`.
+
+---
+
+## 10. Qué NO hacer
 
 - No `async/await` dentro de transacción (COM AutoCAD no es thread-safe).
 - No tocar DWG sin `Document.LockDocument()` si estás fuera del thread principal.

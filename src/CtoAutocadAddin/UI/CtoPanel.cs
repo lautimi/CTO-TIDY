@@ -1,16 +1,12 @@
 // Aliases para resolver ambigüedad entre namespaces de AutoCAD y WinForms
 using AcApp      = Autodesk.AutoCAD.ApplicationServices.Application;
 using WinFont    = System.Drawing.Font;
-using WinFlow    = System.Windows.Forms.FlowDirection;
-
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
 using System.Windows.Forms;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
-using Autodesk.AutoCAD.Geometry;
 using Koovra.Cto.AutocadAddin.Geometry;
 using Koovra.Cto.AutocadAddin.Infrastructure;
 using Koovra.Cto.AutocadAddin.Models;
@@ -26,14 +22,55 @@ namespace Koovra.Cto.AutocadAddin.UI
     /// </summary>
     public class CtoPanel : Form
     {
-        private StepRow     _rowPostes, _rowAsociar, _rowComentarios, _rowCalcular, _rowDesplegar;
-        private Button      _btnRunAll;
-        private RichTextBox _log;
+        private StepRow       _rowPostes, _rowAsociar, _rowComentarios, _rowCalcular, _rowDesplegar;
+        private FuturisticTheme.BtnFuturista _btnRunAll;
+        private RichTextBox   _log;
         private NumericUpDown _nudRadius;
+
+        // Animation
+        private Timer _fadeTimer;
+        private Timer _pulseTimer;
 
         public CtoPanel()
         {
+            this.Opacity = 0.0;
             BuildUI();
+            Load += OnFormLoad;
+        }
+
+        // ── Form Load ────────────────────────────────────────────────────────
+
+        private void OnFormLoad(object sender, EventArgs e)
+        {
+            _fadeTimer = new Timer { Interval = 16 };
+            _fadeTimer.Tick += (s, ev) =>
+            {
+                double next = Opacity + 0.07;
+                if (next >= 1.0)
+                {
+                    Opacity = 1.0;
+                    _fadeTimer.Stop();
+                    _fadeTimer.Dispose();
+                    _fadeTimer = null;
+                }
+                else
+                {
+                    Opacity = next;
+                }
+            };
+            _fadeTimer.Start();
+
+            // Pulse timer: drives Running dot animations in all StepRows
+            _pulseTimer = new Timer { Interval = 30 };
+            _pulseTimer.Tick += (s, ev) =>
+            {
+                _rowPostes.PulseTick();
+                _rowAsociar.PulseTick();
+                _rowComentarios.PulseTick();
+                _rowCalcular.PulseTick();
+                _rowDesplegar.PulseTick();
+            };
+            _pulseTimer.Start();
         }
 
         // ── Construcción de UI ───────────────────────────────────────────────
@@ -44,50 +81,56 @@ namespace Koovra.Cto.AutocadAddin.UI
             FormBorderStyle = FormBorderStyle.SizableToolWindow;
             StartPosition   = FormStartPosition.Manual;
             Location        = new Point(100, 100);
-            Size            = new Size(370, 570);
-            MinimumSize     = new Size(330, 480);
-            BackColor       = Color.FromArgb(45, 45, 48);
-            ForeColor       = Color.White;
+            Size            = new Size(370, 600);
+            MinimumSize     = new Size(330, 500);
+            BackColor       = FuturisticTheme.BgBase;
+            ForeColor       = FuturisticTheme.TextPrimary;
             Font            = new WinFont("Segoe UI", 9f);
+            DoubleBuffered  = true;
 
             var layout = new TableLayoutPanel
             {
                 Dock        = DockStyle.Fill,
                 ColumnCount = 1,
-                Padding     = new Padding(8),
+                Padding     = new Padding(0),
                 BackColor   = Color.Transparent,
             };
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
             void AddRow(int h) => layout.RowStyles.Add(new RowStyle(SizeType.Absolute, h));
-            AddRow(34);  // título
-            AddRow(40);  // paso 1
-            AddRow(40);  // paso 2
-            AddRow(40);  // paso 3
-            AddRow(40);  // paso 4
-            AddRow(40);  // paso 5
-            AddRow(34);  // radio
-            AddRow(32);  // inspeccionar (diagnóstico)
+            AddRow(48);  // header
+            AddRow(44);  // paso 1
+            AddRow(44);  // paso 2
+            AddRow(44);  // paso 3
+            AddRow(44);  // paso 4
+            AddRow(44);  // paso 5
+            AddRow(36);  // radio
+            AddRow(34);  // inspeccionar
+            AddRow(34);  // configuración
             AddRow(42);  // run all
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // log
 
-            // Título
-            var title = new Label
+            // ── Header compacto ──────────────────────────────────────────────
+            var header = new FuturisticTheme.HeaderPanel(
+                this,
+                getGlowPhase: null,
+                getShimmerX:  null,
+                title:        "⚡  CTO — Workflow FTTH",
+                subtitle:     null,
+                tag:          null,
+                showClose:    false)
             {
-                Text      = "⚡  CTO — Workflow FTTH",
-                Dock      = DockStyle.Fill,
-                ForeColor = Color.FromArgb(0, 188, 212),
-                Font      = new WinFont("Segoe UI", 11f, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleLeft,
+                Dock   = DockStyle.Fill,
+                Height = 48,
             };
-            layout.Controls.Add(title, 0, 0);
+            layout.Controls.Add(header, 0, 0);
 
-            // Pasos
-            _rowPostes      = new StepRow("1. Seleccionar postes",    Color.FromArgb(33,150,243));
-            _rowAsociar     = new StepRow("2. Asociar postes",        Color.FromArgb(33,150,243));
-            _rowComentarios = new StepRow("3. Leer comentarios (HP)", Color.FromArgb(33,150,243));
-            _rowCalcular    = new StepRow("4. Calcular CTOs",         Color.FromArgb(33,150,243));
-            _rowDesplegar   = new StepRow("5. Desplegar CTOs",        Color.FromArgb(33,150,243));
+            // ── Pasos ────────────────────────────────────────────────────────
+            _rowPostes      = new StepRow("1. Seleccionar postes");
+            _rowAsociar     = new StepRow("2. Asociar postes");
+            _rowComentarios = new StepRow("3. Leer comentarios (HP)");
+            _rowCalcular    = new StepRow("4. Calcular CTOs");
+            _rowDesplegar   = new StepRow("5. Desplegar CTOs");
 
             _rowPostes.Button.Click      += (s, e) => RunStep(_rowPostes,      StepSeleccionar);
             _rowAsociar.Button.Click     += (s, e) => RunStep(_rowAsociar,     StepAsociar);
@@ -101,20 +144,28 @@ namespace Koovra.Cto.AutocadAddin.UI
             layout.Controls.Add(_rowCalcular,    0, 4);
             layout.Controls.Add(_rowDesplegar,   0, 5);
 
-            // Radio buffer
-            var radioRow = new FlowLayoutPanel
+            // ── Radio buffer ─────────────────────────────────────────────────
+            var radioRow = new Panel
             {
                 Dock      = DockStyle.Fill,
-                BackColor = Color.Transparent,
-                FlowDirection = WinFlow.LeftToRight,
+                BackColor = FuturisticTheme.BgPanel,
+                Padding   = new Padding(8, 4, 8, 4),
             };
-            radioRow.Controls.Add(new Label
+            radioRow.Paint += (s, e) =>
             {
-                Text      = "Radio buffer comentarios (m):",
-                ForeColor = Color.Silver,
+                using (var pen = new Pen(FuturisticTheme.BorderSubtle))
+                    e.Graphics.DrawLine(pen, 0, radioRow.Height - 1, radioRow.Width, radioRow.Height - 1);
+            };
+
+            var lblRadius = new Label
+            {
+                Text      = "Radio buffer (m):",
+                ForeColor = FuturisticTheme.TextSecondary,
                 AutoSize  = true,
-                Margin    = new Padding(0, 7, 6, 0),
-            });
+                Location  = new Point(8, 9),
+                Font      = new WinFont("Segoe UI", 8.5f),
+            };
+
             _nudRadius = new NumericUpDown
             {
                 Minimum       = 1,
@@ -122,61 +173,80 @@ namespace Koovra.Cto.AutocadAddin.UI
                 Value         = (decimal)AddinSettings.Current.TextBufferRadius,
                 DecimalPlaces = 1,
                 Increment     = 0.5m,
-                Width         = 65,
-                BackColor     = Color.FromArgb(60, 60, 65),
-                ForeColor     = Color.White,
+                Width         = 60,
+                BackColor     = FuturisticTheme.BgPanel,
+                ForeColor     = FuturisticTheme.TextPrimary,
+                BorderStyle   = BorderStyle.None,
+                Location      = new Point(140, 6),
+                Font          = new WinFont("Segoe UI", 8.5f),
             };
+            _nudRadius.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(FuturisticTheme.BorderSubtle))
+                    e.Graphics.DrawRectangle(pen, new Rectangle(0, 0, _nudRadius.Width - 1, _nudRadius.Height - 1));
+            };
+
+            radioRow.Controls.Add(lblRadius);
             radioRow.Controls.Add(_nudRadius);
             layout.Controls.Add(radioRow, 0, 6);
 
-            // Inspeccionar poste (diagnóstico)
-            var btnInspect = new Button
+            // ── Inspeccionar ─────────────────────────────────────────────────
+            var btnInspect = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Secondary)
             {
-                Text      = "🔍  Inspeccionar poste (diagnóstico)",
-                Dock      = DockStyle.Fill,
-                BackColor = Color.FromArgb(55, 55, 60),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font      = new WinFont("Segoe UI", 8.5f),
-                Margin    = new Padding(0, 2, 0, 2),
+                Text   = "Inspeccionar poste (diagnóstico)",
+                Dock   = DockStyle.Fill,
+                Margin = new Padding(8, 4, 8, 2),
+                Font   = new WinFont("Segoe UI", 8.5f, FontStyle.Bold),
             };
-            btnInspect.FlatAppearance.BorderSize = 0;
             btnInspect.Click += (s, e) =>
             {
                 var doc = AcApp.DocumentManager.MdiActiveDocument;
-                // SendStringToExecute: forma oficial de invocar un comando desde UI thread.
-                // El espacio final cierra el nombre del comando; el comando se ocupa del resto.
                 doc?.SendStringToExecute("CTO_INSPECCIONAR ", true, false, false);
             };
             layout.Controls.Add(btnInspect, 0, 7);
 
-            // Ejecutar Todo
-            _btnRunAll = new Button
+            // ── Configuración ────────────────────────────────────────────────
+            var btnConfig = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Secondary)
             {
-                Text      = "▶   EJECUTAR TODO  (pasos 1 → 5)",
-                Dock      = DockStyle.Fill,
-                BackColor = Color.FromArgb(0, 150, 136),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font      = new WinFont("Segoe UI", 9f, FontStyle.Bold),
-                Margin    = new Padding(0, 4, 0, 4),
+                Text   = "Configuración",
+                Dock   = DockStyle.Fill,
+                Margin = new Padding(8, 2, 8, 4),
+                Font   = new WinFont("Segoe UI", 8.5f, FontStyle.Bold),
             };
-            _btnRunAll.FlatAppearance.BorderSize = 0;
-            _btnRunAll.Click += (s, e) => RunAll();
-            layout.Controls.Add(_btnRunAll, 0, 8);
+            btnConfig.Click += (s, e) =>
+            {
+                var doc = AcApp.DocumentManager.MdiActiveDocument;
+                doc?.SendStringToExecute("CTO_CONFIG ", true, false, false);
+            };
+            layout.Controls.Add(btnConfig, 0, 8);
 
-            // Log
+            // ── Ejecutar Todo ────────────────────────────────────────────────
+            _btnRunAll = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Primary)
+            {
+                Text   = "EJECUTAR TODO  (pasos 1 → 5)",
+                Dock   = DockStyle.Fill,
+                Height = 42,
+                Margin = new Padding(8, 4, 8, 4),
+                Font   = new WinFont("Segoe UI", 9f, FontStyle.Bold),
+            };
+            _btnRunAll.SetColorOverride(
+                Color.FromArgb(0x00, 0xC8, 0x96),
+                Color.FromArgb(0x00, 0xA8, 0x7D));
+            _btnRunAll.Click += (s, e) => RunAll();
+            layout.Controls.Add(_btnRunAll, 0, 9);
+
+            // ── Log ──────────────────────────────────────────────────────────
             _log = new RichTextBox
             {
                 Dock        = DockStyle.Fill,
-                BackColor   = Color.FromArgb(28, 28, 28),
-                ForeColor   = Color.FromArgb(200, 200, 200),
+                BackColor   = FuturisticTheme.BgBase,
+                ForeColor   = FuturisticTheme.TextSecondary,
                 Font        = new WinFont("Consolas", 8f),
                 ReadOnly    = true,
                 ScrollBars  = RichTextBoxScrollBars.Vertical,
                 BorderStyle = BorderStyle.None,
             };
-            layout.Controls.Add(_log, 0, 9);
+            layout.Controls.Add(_log, 0, 10);
 
             Controls.Add(layout);
             AppendLog("Panel listo. Ejecutá los pasos en orden o usá 'Ejecutar Todo'.", LogLevel.Info);
@@ -200,6 +270,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             try
             {
                 StepResult r = action();
+                row.SetStatus(r.Ok ? StepStatus.Ok : StepStatus.Warning);
                 AppendLog(r.Message, r.Ok ? LogLevel.Ok : LogLevel.Warn);
             }
             catch (Exception ex)
@@ -214,23 +285,30 @@ namespace Koovra.Cto.AutocadAddin.UI
         private StepResult StepSeleccionar()
         {
             var ed = AcApp.DocumentManager.MdiActiveDocument.Editor;
-            var ids = SelectionService.SelectAllOnLayer(ed, "POSTE_*", "INSERT");
+            var poleLayerNames = AddinSettings.Current.PoleLayerNames;
+            var combined = new ObjectIdCollection();
+            foreach (string poleLayer in poleLayerNames)
+            {
+                var layerIds = SelectionService.SelectAllOnLayer(ed, poleLayer, "INSERT");
+                foreach (ObjectId id in layerIds)
+                    combined.Add(id);
+            }
 
-            if (ids.Count == 0)
+            if (combined.Count == 0)
             {
                 _rowPostes.SetStatus(StepStatus.Warning);
                 _rowPostes.SetInfo("0");
-                return new StepResult(false, "No se encontraron bloques en capas POSTE_*");
+                return new StepResult(false, "No se encontraron bloques en los layers de postes configurados");
             }
 
-            var arr = new ObjectId[ids.Count];
-            ids.CopyTo(arr, 0);
+            var arr = new ObjectId[combined.Count];
+            combined.CopyTo(arr, 0);
             SelectionContext.Instance.SetPostes(arr);
             SelectionContext.Instance.ClearGeometry();
 
             _rowPostes.SetStatus(StepStatus.Ok);
-            _rowPostes.SetInfo($"{ids.Count} postes");
-            return new StepResult(true, $"Paso 1 OK — {ids.Count} postes");
+            _rowPostes.SetInfo($"{combined.Count} postes");
+            return new StepResult(true, $"Paso 1 OK — {combined.Count} postes");
         }
 
         // ── Paso 2 ───────────────────────────────────────────────────────────
@@ -277,7 +355,6 @@ namespace Koovra.Cto.AutocadAddin.UI
                     var out_ = asoc.AssociatePole(tr, pid);
                     var lo   = lingAssoc.AssociatePole(tr, pid, lingas.Prioridad, lingas.Secundaria);
 
-                    // Frente de manzana: el LARGO real para la tabla CTO
                     string idFrente    = string.Empty;
                     double largoFrente = 0.0;
                     if (out_.Estado == AddressMatcher.OK
@@ -365,7 +442,6 @@ namespace Koovra.Cto.AutocadAddin.UI
             var doc = AcApp.DocumentManager.MdiActiveDocument;
             var ed  = doc.Editor;
 
-            // Segmentos: reutilizar del contexto o recargar desde capa SEGMENTO
             ObjectIdCollection segmentos = SelectionContext.Instance.Segmentos;
             if (segmentos == null || segmentos.Count == 0)
                 segmentos = SelectionService.SelectSegmentos(ed);
@@ -375,13 +451,9 @@ namespace Koovra.Cto.AutocadAddin.UI
             using (doc.LockDocument())
             using (var tr = doc.Database.TransactionManager.StartTransaction())
             {
-                // 1. Cargar todos los CONT_HP y asociarlos a su segmento
-                var allHpBlocks = TextBufferCollector.LoadAllHpBlocks(tr, ed, segmentos);
-
-                // 2. Mapa  segmentHandle → HP_total
+                var allHpBlocks  = TextBufferCollector.LoadAllHpBlocks(tr, ed, segmentos);
                 var hpPerSegment = TextBufferCollector.BuildHpPerSegment(allHpBlocks);
 
-                // 3. Por cada poste: HP por ID_SEGMENT + comentarios por buffer
                 var col = new TextBufferCollector(ed, radius);
                 foreach (ObjectId pid in polesIds)
                 {
@@ -414,7 +486,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 return new StepResult(false, "Ejecutá el paso 1 primero");
             }
 
-            var doc = AcApp.DocumentManager.MdiActiveDocument;
+            var doc   = AcApp.DocumentManager.MdiActiveDocument;
             var stats = new Commands.CtoDistributor.Stats();
 
             using (doc.LockDocument())
@@ -449,7 +521,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             using (doc.LockDocument())
             using (var tr = doc.Database.TransactionManager.StartTransaction())
             {
-                var dep = new CtoBlockDeployer(s.BlockNameDesp, s.BlockNameCrec, s.CtoLayerName);
+                var dep    = new CtoBlockDeployer(s.BlockNameDesp, s.BlockNameCrec, s.CtoLayerName);
                 int purged = dep.PurgeExistingBlocks(tr, doc.Database);
                 foreach (ObjectId pid in polesIds)
                     total += dep.DeployForPole(tr, doc.Database, pid);
@@ -475,13 +547,13 @@ namespace Koovra.Cto.AutocadAddin.UI
             Color c; string pfx;
             switch (level)
             {
-                case LogLevel.Ok:    c = Color.FromArgb(102,187,106); pfx = "✓ "; break;
-                case LogLevel.Warn:  c = Color.FromArgb(255,183, 77); pfx = "⚠ "; break;
-                case LogLevel.Error: c = Color.FromArgb(239, 83, 80); pfx = "✗ "; break;
-                default:             c = Color.FromArgb(160,160,160); pfx = "  "; break;
+                case LogLevel.Ok:    c = Color.FromArgb(0x00, 0xC8, 0x96); pfx = "✓ "; break;
+                case LogLevel.Warn:  c = Color.FromArgb(0xFF, 0xB3, 0x47); pfx = "⚠ "; break;
+                case LogLevel.Error: c = Color.FromArgb(0xFF, 0x55, 0x77); pfx = "✗ "; break;
+                default:             c = FuturisticTheme.TextSecondary;     pfx = "  "; break;
             }
             _log.SelectionStart  = _log.TextLength;
-            _log.SelectionColor  = Color.FromArgb(90, 90, 90);
+            _log.SelectionColor  = FuturisticTheme.TextMuted;
             _log.AppendText($"{DateTime.Now:HH:mm:ss} ");
             _log.SelectionColor  = c;
             _log.AppendText($"{pfx}{msg}\n");
@@ -490,75 +562,134 @@ namespace Koovra.Cto.AutocadAddin.UI
             try { AcApp.DocumentManager.MdiActiveDocument?.Editor.WriteMessage($"\n[CTO] {msg}"); } catch { }
         }
 
+        // ── Dispose ───────────────────────────────────────────────────────────
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (_fadeTimer != null)
+                {
+                    _fadeTimer.Stop();
+                    _fadeTimer.Dispose();
+                    _fadeTimer = null;
+                }
+                if (_pulseTimer != null)
+                {
+                    _pulseTimer.Stop();
+                    _pulseTimer.Dispose();
+                    _pulseTimer = null;
+                }
+            }
+            base.Dispose(disposing);
+        }
+
         // ── StepRow ──────────────────────────────────────────────────────────
 
         private class StepRow : Panel
         {
-            public Button Button { get; }
-            private readonly Label _dot;
-            private readonly Label _info;
+            public FuturisticTheme.BtnFuturista Button { get; }
+            private readonly DotIndicator _dot;
+            private readonly Label        _info;
 
-            public StepRow(string label, Color accent)
+            public StepRow(string label)
             {
                 Dock      = DockStyle.Fill;
-                BackColor = Color.Transparent;
-                Margin    = new Padding(0, 2, 0, 2);
-                Height    = 36;
+                BackColor = FuturisticTheme.BgPanel;
+                Margin    = new Padding(0);
+                Height    = 44;
 
-                _dot = new Label
-                {
-                    Text      = "●",
-                    ForeColor = Color.FromArgb(70, 70, 70),
-                    Size      = new Size(18, 34),
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    Font      = new WinFont("Segoe UI", 11f),
-                };
+                _dot = new DotIndicator { Location = new Point(8, 18) };
 
-                Button = new Button
+                Button = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Primary)
                 {
-                    Text      = label,
-                    Size      = new Size(196, 30),
-                    BackColor = accent,
-                    ForeColor = Color.White,
-                    FlatStyle = FlatStyle.Flat,
-                    Font      = new WinFont("Segoe UI", 8.5f),
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    Padding   = new Padding(4, 0, 0, 0),
+                    Text     = label,
+                    Size     = new Size(196, 28),
+                    Location = new Point(24, 8),
+                    Font     = new WinFont("Segoe UI", 8.5f, FontStyle.Bold),
                 };
-                Button.FlatAppearance.BorderSize = 0;
 
                 _info = new Label
                 {
                     Text      = "—",
-                    ForeColor = Color.Silver,
-                    Size      = new Size(110, 30),
+                    ForeColor = FuturisticTheme.TextSecondary,
+                    Size      = new Size(120, 28),
+                    Location  = new Point(226, 8),
                     TextAlign = ContentAlignment.MiddleLeft,
                     Font      = new WinFont("Consolas", 7.5f),
                 };
 
-                var flow = new FlowLayoutPanel
+                Controls.Add(_dot);
+                Controls.Add(Button);
+                Controls.Add(_info);
+
+                // Borde bottom
+                Paint += (s, e) =>
                 {
-                    Dock          = DockStyle.Fill,
-                    BackColor     = Color.Transparent,
-                    FlowDirection = WinFlow.LeftToRight,
+                    using (var pen = new Pen(FuturisticTheme.BorderSubtle))
+                        e.Graphics.DrawLine(pen, 0, Height - 1, Width, Height - 1);
                 };
-                flow.Controls.Add(_dot);
-                flow.Controls.Add(Button);
-                flow.Controls.Add(_info);
-                Controls.Add(flow);
             }
 
             public void SetStatus(StepStatus s)
             {
-                _dot.ForeColor = s == StepStatus.Ok      ? Color.FromArgb(102,187,106)
-                               : s == StepStatus.Running ? Color.FromArgb(255,183, 77)
-                               : s == StepStatus.Warning ? Color.FromArgb(255,112, 67)
-                               : s == StepStatus.Error   ? Color.FromArgb(239, 83, 80)
-                               :                           Color.FromArgb(70,  70, 70);
-                _dot.Refresh();
+                _dot.Status = s;
+                _dot.Invalidate();
             }
 
             public void SetInfo(string text) { _info.Text = text; _info.Refresh(); }
+
+            public void PulseTick() { _dot.PulseTick(); }
+        }
+
+        // ── DotIndicator ─────────────────────────────────────────────────────
+
+        private class DotIndicator : Control
+        {
+            public StepStatus Status { get; set; } = StepStatus.Pending;
+
+            private int  _pulseAlpha    = 80;
+            private bool _pulseDir      = true; // true = going up
+
+            public DotIndicator()
+            {
+                Size          = new Size(8, 8);
+                DoubleBuffered = true;
+            }
+
+            public void PulseTick()
+            {
+                if (Status != StepStatus.Running) return;
+
+                if (_pulseDir)
+                {
+                    _pulseAlpha += 10;
+                    if (_pulseAlpha >= 255) { _pulseAlpha = 255; _pulseDir = false; }
+                }
+                else
+                {
+                    _pulseAlpha -= 10;
+                    if (_pulseAlpha <= 80) { _pulseAlpha = 80; _pulseDir = true; }
+                }
+                Invalidate();
+            }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                Color baseColor;
+                switch (Status)
+                {
+                    case StepStatus.Running: baseColor = Color.FromArgb(_pulseAlpha, 0x00, 0xBF, 0xFF); break;
+                    case StepStatus.Ok:      baseColor = Color.FromArgb(0x00, 0xC8, 0x96);               break;
+                    case StepStatus.Warning: baseColor = Color.FromArgb(0xFF, 0xB3, 0x47);               break;
+                    case StepStatus.Error:   baseColor = Color.FromArgb(0xFF, 0x55, 0x77);               break;
+                    default:                 baseColor = Color.FromArgb(0x5A, 0x6B, 0x85);               break;
+                }
+                using (var b = new SolidBrush(baseColor))
+                    e.Graphics.FillRectangle(b, new Rectangle(0, 0, Width, Height));
+            }
+
+            protected override void OnPaintBackground(PaintEventArgs e) { /* suppress */ }
         }
 
         private enum StepStatus { Pending, Running, Ok, Warning, Error }

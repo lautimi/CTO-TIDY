@@ -7,8 +7,9 @@ namespace Koovra.Cto.AutocadAddin.Geometry
         public const int NEAREST_NEIGHBOR_K = 10;
         public const double EPSILON_DIST = 0.01;
         public const double TEXT_BUFFER_DEFAULT = 5.0;
-        public const double CTO_OFFSET_X = 2.0;
-        public const double CTO_OFFSET_Y = 2.0;
-        public const double CTO_SEPARACION = 0.5;
+        public const double CTO_OFFSET_X = 0.0;
+        public const double CTO_OFFSET_Y = 3.4;   // offset perpendicular al eje (hacia vereda)
+        public const double CTO_SEPARACION = 0.5; // apilado a lo largo de la linga
+        public const double CTO_ALERT_CIRCLE_RADIUS = 5.0;
     }
 }

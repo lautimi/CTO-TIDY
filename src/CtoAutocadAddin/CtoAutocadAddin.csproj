@@ -65,8 +65,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Commands\AsociarPostesCommand.cs" />
+    <Compile Include="Commands\ConfigCommand.cs" />
     <Compile Include="Commands\PanelCommand.cs" />
     <Compile Include="UI\CtoPanel.cs" />
+    <Compile Include="UI\FuturisticTheme.cs" />
     <Compile Include="Commands\CalcularCtosCommand.cs" />
     <Compile Include="Commands\DesplegarCtosCommand.cs" />
     <Compile Include="Commands\InspeccionarPosteCommand.cs" />
@@ -93,6 +95,8 @@
     <Compile Include="Services\PoleSegmentAssociator.cs" />
     <Compile Include="Services\SelectionService.cs" />
     <Compile Include="Services\TextBufferCollector.cs" />
+    <Compile Include="UI\SettingsDialog.cs" />
+    <Compile Include="AddinApplication.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CtoAutocadAddin.Core\CtoAutocadAddin.Core.csproj">
@@ -101,4 +105,11 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Target Name="EmbedCoreDll" AfterTargets="ResolveReferences">
+    <ItemGroup>
+      <EmbeddedResource Include="$(OutputPath)CtoAutocadAddin.Core.dll">
+        <LogicalName>CtoAutocadAddin.Core.dll</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+  </Target>
 </Project>

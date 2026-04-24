@@ -32,6 +32,12 @@ Configuración en `Models/AddinSettings.cs` (singleton `AddinSettings.Current`):
 - `BlockNameDesp` — nombre del bloque para C_DESP (default: `CAJA_ACCESO_b`).
 - `BlockNameCrec` — nombre del bloque para C_CREC (default: `CAJA_CRECIMIENTO`).
 - `CtoLayerName`  — capa donde se insertan los bloques (default: `CTO`).
+- `PoleLayerName` — layer del cual `SelectionService` filtra postes. Configurable en runtime.
+- `ObservationCodes` — lista de códigos que empujan un poste al final del ranking PRIORIDAD. Ver semilla en `docs/especificacion.md` §9.
+
+| Comando | Archivo | Descripción |
+|---|---|---|
+| `CTO_CONFIG` | `ConfigCommand.cs` | Abre `SettingsDialog` modal. Permite editar `PoleLayerName` y `ObservationCodes` en memoria. También accesible via botón en `CtoPanel`. Los cambios **no persisten entre sesiones de AutoCAD**. |
 
 ## Convenciones
 

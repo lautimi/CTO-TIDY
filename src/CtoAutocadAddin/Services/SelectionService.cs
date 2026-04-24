@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
+using Koovra.Cto.AutocadAddin.Models;
 
 namespace Koovra.Cto.AutocadAddin.Services
 {
@@ -44,6 +45,23 @@ namespace Koovra.Cto.AutocadAddin.Services
                 return new ObjectIdCollection(res.Value.GetObjectIds());
 
             return new ObjectIdCollection();
+        }
+
+        /// <summary>
+        /// Selecciona todos los bloques INSERT de los layers en AddinSettings.Current.PoleLayerNames,
+        /// combinando los resultados en una sola colección.
+        /// </summary>
+        public static ObjectIdCollection SelectPostes(Editor ed)
+        {
+            var combined = new ObjectIdCollection();
+            List<string> layerNames = AddinSettings.Current.PoleLayerNames;
+            foreach (string layerName in layerNames)
+            {
+                ObjectIdCollection layerIds = SelectAllOnLayer(ed, layerName, "INSERT");
+                foreach (ObjectId id in layerIds)
+                    combined.Add(id);
+            }
+            return combined;
         }
 
         /// <summary>

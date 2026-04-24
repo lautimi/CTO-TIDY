@@ -2,6 +2,7 @@ using System;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Koovra.Cto.AutocadAddin.Geometry;
+using Koovra.Cto.AutocadAddin.Infrastructure;
 using Koovra.Cto.AutocadAddin.Models;
 using Koovra.Cto.AutocadAddin.Persistence;
 
@@ -64,7 +65,7 @@ namespace Koovra.Cto.AutocadAddin.Services
             if (poleEnt == null) return 0;
             Point3d polePoint = Extensions.GetInsertionOrPosition(poleEnt);
 
-            double angleRad = ComputeDeploymentAngle(tr, db, poleId);
+            var angles = ComputeDeploymentAngles(tr, db, poleId, polePoint);
 
             var blkTable = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
             EnsureLayer(tr, db, _layerName);
@@ -87,13 +88,13 @@ namespace Koovra.Cto.AutocadAddin.Services
             {
                 if (d > 0)
                 {
-                    InsertBlock(tr, ms, defIdDesp, polePoint, angleRad, slot++);
+                    InsertBlock(tr, ms, defIdDesp, polePoint, angles.displayAngle, angles.offsetAngle, slot++);
                     inserted++;
                     d--;
                 }
                 if (c > 0)
                 {
-                    InsertBlock(tr, ms, defIdCrec, polePoint, angleRad, slot++);
+                    InsertBlock(tr, ms, defIdCrec, polePoint, angles.displayAngle, angles.offsetAngle, slot++);
                     inserted++;
                     c--;
                 }
@@ -106,18 +107,20 @@ namespace Koovra.Cto.AutocadAddin.Services
 
         private void InsertBlock(Transaction tr, BlockTableRecord ms,
                                  ObjectId defId, Point3d polePoint,
-                                 double angleRad, int slot)
+                                 double displayAngle, double offsetAngle, int slot)
         {
+            // offsetAngle controla hacia qué lado va el bloque (vereda correcta).
+            // displayAngle controla la rotación visual (texto legible).
             Vector3d localOffset = new Vector3d(
-                GeometryConstants.CTO_OFFSET_X + slot * GeometryConstants.CTO_SEPARACION,
+                slot * GeometryConstants.CTO_SEPARACION,
                 GeometryConstants.CTO_OFFSET_Y,
                 0);
-            Vector3d worldOffset = localOffset.RotateBy(angleRad, Vector3d.ZAxis);
+            Vector3d worldOffset = localOffset.RotateBy(offsetAngle, Vector3d.ZAxis);
             Point3d insPt = polePoint + worldOffset;
 
             using (var br = new BlockReference(insPt, defId))
             {
-                br.Rotation = angleRad;
+                br.Rotation = displayAngle;
                 br.Layer    = _layerName;
                 ms.AppendEntity(br);
                 tr.AddNewlyCreatedDBObject(br, true);
@@ -125,28 +128,54 @@ namespace Koovra.Cto.AutocadAddin.Services
         }
 
         /// <summary>
-        /// Recupera el ángulo de despliegue para el poste (en radianes).
-        /// Prioridad: ID_LINGA (cable físico real) → ID_SEGMENT (eje abstracto, fallback).
-        /// Ambos almacenan un Handle hex que resuelve a una Curve.
+        /// Retorna dos ángulos para el despliegue:
+        /// - offsetAngle: paralelo al eje de calle, lado correcto (sin clampear). Usado para calcular worldOffset.
+        /// - displayAngle: clampeado al rango legible [0°,90°]∪[270°,360°]. Usado para br.Rotation.
+        /// Separar ambos evita que el clamping de legibilidad invierta el lado de la vereda.
         /// </summary>
-        private static double ComputeDeploymentAngle(Transaction tr, Database db, ObjectId poleId)
+        private static (double displayAngle, double offsetAngle) ComputeDeploymentAngles(
+            Transaction tr, Database db, ObjectId poleId, Point3d polePoint)
         {
-            string handleHex = XDataManager.GetString(tr, poleId, XDataKeys.ID_LINGA);
-            if (string.IsNullOrEmpty(handleHex))
-                handleHex = XDataManager.GetString(tr, poleId, XDataKeys.ID_SEGMENT);
-            if (string.IsNullOrEmpty(handleHex)) return 0.0;
+            string segHex   = XDataManager.GetString(tr, poleId, XDataKeys.ID_SEGMENT);
+            string lingaHex = XDataManager.GetString(tr, poleId, XDataKeys.ID_LINGA);
 
+            // Segmento primero (eje de calle, referencia canónica); linga como fallback.
+            Curve refCurve = ResolveCurve(tr, db, segHex) ?? ResolveCurve(tr, db, lingaHex);
+            if (refCurve == null) return (0.0, 0.0);
+
+            // dir y cross del MISMO refCurve: consistente, sin mezcla de curvas.
+            Vector3d dir = (refCurve.EndPoint - refCurve.StartPoint).GetNormal();
+            double baseAngle = Math.Atan2(dir.Y, dir.X);
+
+            Point3d closest = refCurve.GetClosestPointTo(polePoint, false);
+            Vector3d toPole = polePoint - closest;
+            double cross = dir.X * toPole.Y - dir.Y * toPole.X;
+
+            // offsetAngle: paralelo al eje. Rotación local de (0, CTO_OFFSET_Y, 0) apunta
+            // en la dirección perpendicular correcta hacia la vereda.
+            // cross >= 0 → poste a la IZQUIERDA del sentido del segmento → sumar π.
+            // cross < 0  → poste a la DERECHA → sin suma.
+            double offsetAngle = baseAngle + (cross >= 0 ? Math.PI : 0.0);
+
+            // displayAngle: clampeado para legibilidad. El clamping puede girar 180° el ángulo
+            // visual, pero NO afecta offsetAngle, con lo que el offset sigue siendo correcto.
+            const double TwoPi = 2.0 * Math.PI;
+            double displayAngle = ((offsetAngle % TwoPi) + TwoPi) % TwoPi;
+            if (displayAngle > Math.PI / 2.0 && displayAngle < 3.0 * Math.PI / 2.0)
+                displayAngle += Math.PI;
+            displayAngle = ((displayAngle % TwoPi) + TwoPi) % TwoPi;
+
+            return (displayAngle, offsetAngle);
+        }
+
+        private static Curve ResolveCurve(Transaction tr, Database db, string handleHex)
+        {
+            if (string.IsNullOrEmpty(handleHex)) return null;
             if (!long.TryParse(handleHex, System.Globalization.NumberStyles.HexNumber,
                     System.Globalization.CultureInfo.InvariantCulture, out long handleValue))
-                return 0.0;
-
-            if (!db.TryGetObjectId(new Handle(handleValue), out ObjectId curveId)) return 0.0;
-
-            Curve curve = tr.GetObject(curveId, OpenMode.ForRead) as Curve;
-            if (curve == null) return 0.0;
-
-            return Math.Atan2(curve.EndPoint.Y - curve.StartPoint.Y,
-                              curve.EndPoint.X - curve.StartPoint.X);
+                return null;
+            if (!db.TryGetObjectId(new Handle(handleValue), out ObjectId curveId)) return null;
+            return tr.GetObject(curveId, OpenMode.ForRead) as Curve;
         }
 
         /// <summary>
