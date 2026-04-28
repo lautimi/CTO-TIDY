@@ -21,9 +21,23 @@ dentro del paso 1 para reutilizar la misma pasada geométrica.
 
 | Comando | Archivo | Descripción |
 |---|---|---|
-| `CTO_PANEL`        | `PanelCommand.cs`            | Abre el `PaletteSet` con botones para cada paso + "Ejecutar Todo" + "Inspeccionar poste". |
+| `CTO_PANEL`        | `PanelCommand.cs`            | Abre el `PaletteSet` con botones para cada paso + "Ejecutar Todo" + "Inspeccionar poste". Al abrirse, precomputa la `StreetCornerLibrary` con `LoadingOverlay` animado y la cachea en `CtoCache`. |
 | `CTO_INSPECCIONAR` | `InspeccionarPosteCommand.cs`| Dumpea toda la XData `KOOVRA_CTO` de un poste seleccionado al Editor. Útil porque `LIST` solo muestra coordenadas. |
 | `CTO_ZOOM_HANDLE`  | `ZoomHandleCommand.cs`       | Zoom a una entidad dado su handle hex. Usado desde logs para navegar a segmentos con warning. |
+| `CTO_DUMP_CALLES`  | `DumpCallesCommand.cs`       | Debug: selecciona segmentos y reporta los nombres de calle leídos del OD (`CALLE_1`). |
+| `CTO_DUMP_ESQUINAS`| `DumpEsquinasCommand.cs`     | Debug: selecciona segmentos, construye `StreetCornerLibrary` y dibuja las esquinas detectadas en la capa `CTO_AUDIT_ESQUINAS` (color 2, amarillo) con texto del par de calles. |
+
+Los comandos debug `CTO_DUMP_CALLES` y `CTO_DUMP_ESQUINAS` se mantienen en Release (no detrás de `#if DEBUG`) para diagnóstico en producción.
+
+### Capas de auditoría V4
+
+| Capa | Color | Contenido |
+|---|---|---|
+| `CTO_AUDIT_FRENTES_V4` | 3 (verde) | Postes resueltos por V4 (esquinas reales de calle). |
+| `CTO_AUDIT_FRENTES_V3` | 6 (cian)  | Postes resueltos por V3 (proyección directa) o V2 (DetectCorners). |
+| `CTO_AUDIT_ESQUINAS`   | 2 (amarillo) | Esquinas dibujadas por `CTO_DUMP_ESQUINAS`. |
+
+Activando solo `CTO_AUDIT_FRENTES_V4` se identifica visualmente la cobertura del algoritmo nuevo.
 
 ## Settings runtime
 

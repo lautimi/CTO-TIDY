@@ -15,8 +15,8 @@ constantes en `Persistence/AppNames.cs` (clase `XDataKeys`).
 | `ID_LINGA`     | string (handle hex) | 1 | Linga (cable físico) más cercana al poste. |
 | `LINGA_TIPO`   | string              | 1 | `PRIORIDAD` \| `SECUNDARIA` \| `""`. Solo PRIORIDAD recibe cajas. |
 | `LARGO_LINGA`  | real (m)            | 1 | Largo real de la linga en metros. |
-| `ID_FRENTE`    | string              | 1 | `"<manzanaHandle>#<frenteIdx>"`. Frente de manzana donde está el poste. |
-| `LARGO_FRENTE` | real (m)            | 1 | Largo del lado de la manzana entre dos esquinas (lo que entra en la tabla CTO). |
+| `ID_FRENTE`    | string              | 1 | Frente de manzana donde está el poste. Formato según método: V4/V3 → `"<manzanaHandle>#<segmentHandle>"` (ej. `"11A86#13DA4"`); V2 legacy → `"<manzanaHandle>#<frenteIdx>"` (ej. `"11A86#2"`). |
+| `LARGO_FRENTE` | real (m)            | 1 | Largo del arco de manzana entre dos esquinas reales de calle (lo que entra en la tabla CTO). Calculado por V4 usando `StreetCornerLibrary`; fallback a V3/V2. |
 | `HP`           | int32               | 2 | Hogares Pasados (proyección Futura 100%) leídos del buffer de textos. |
 | `COMENTARIOS`  | string CSV          | 2 | Textos capturados del buffer del poste. |
 | `C_DESP`       | int16               | 4 | Cajas Despliegue Inicial 40% (resultado de la tabla). |

@@ -23,6 +23,24 @@ En `C:\Program Files\Autodesk\AutoCAD 2020\`:
 - `AcDbMgd.dll` — Transactions / Entities.
 - Opcional Map 3D: `AcMapMgd.dll`, `AcMapCore.dll`, `ManagedMapApi.dll`.
 
+### Object Data (Map 3D)
+
+El cálculo de `LARGO_FRENTE` (V4) depende de `ManagedMapApi.dll` (Map 3D 2020), referenciada en el `.csproj` con:
+
+```xml
+<HintPath>$(AutocadInstallDir)\Map\ManagedMapApi.dll</HintPath>
+```
+
+Lectura de OD en `Map/ObjectDataReader.cs` usando reflexión (`TryReadStringCell`), tolerante a variaciones de la API entre versiones de Map 3D.
+
+**Tabla y campo relevantes:**
+
+| Tabla OD | Campo | Tipo | Descripción |
+|---|---|---|---|
+| `SEGMENTO` | `CALLE_1` | string | Nombre de la calle del segmento. Valor especial `"CALLE SIN NOMBRE"` para calles sin denominación. |
+
+Si la lectura de OD falla (DLL no disponible, tabla ausente, celda vacía), `CALLE_1` se trata como `"CALLE SIN NOMBRE"` y V4 degrada a V3/V2.
+
 En `.csproj` todas con `<Private>False</Private>` y `<SpecificVersion>False</SpecificVersion>`.
 
 ### Deploy
