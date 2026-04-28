@@ -84,12 +84,14 @@ namespace Koovra.Cto.AutocadAddin.Commands
             int ok = 0, sinSegmento = 0;
             int pri = 0, sec = 0, sinLinga = 0;
             int warnSinManzana = 0;
-            int cntV4 = 0, cntV3Proj = 0, cntV2 = 0, cntFrenteNotFound = 0;
+            int cntV4 = 0, cntV3Proj = 0, cntV2 = 0, cntFrenteNotFound = 0, cntEjeAnormal = 0;
 
             // Cache para el sanity check posterior: poste → (idLinga, idFrente, lingaObjectId)
             var lingaPorPoste  = new Dictionary<ObjectId, string>();
             var frentePorPoste = new Dictionary<ObjectId, string>();
             var lingaIdByHex   = new Dictionary<string, ObjectId>();
+
+            CtoCache.PostesEnEsquina = new System.Collections.Generic.List<Models.PosteWarning>();
 
             using (doc.LockDocument())
             using (Transaction tr = db.TransactionManager.StartTransaction())
@@ -157,6 +159,35 @@ namespace Koovra.Cto.AutocadAddin.Commands
                                     idFrente = $"{manzanaPl.Handle}#{segSuffix}";
                                 }
                                 largoFrente = fo.Largo;
+
+                                // ── Regla de negocio: LARGO_FRENTE ≤ LARGO ──────────────────
+                                // Si LARGO_FRENTE > LARGO el frente fue calculado sobre un eje
+                                // anormal (la manzana cae sobre la calle transversal, no la calle
+                                // del segmento). Mejor aproximación: usar LARGO (bloque a bloque).
+                                if (largoFrente > outcome.SegmentLength && outcome.SegmentLength > 0)
+                                {
+                                    try
+                                    {
+                                        var ew = tr.GetObject(poleId, OpenMode.ForRead) as Entity;
+                                        string hx = ew?.Handle.ToString() ?? "";
+                                        if (!string.IsNullOrEmpty(hx))
+                                            CtoCache.PostesEnEsquina.Add(new Models.PosteWarning
+                                            {
+                                                HandleHex           = hx,
+                                                Calle               = calleSegmento ?? "",
+                                                LargoFrenteOriginal = largoFrente,
+                                                LargoCap            = outcome.SegmentLength,
+                                                FrenteMethod        = frenteMethod.ToString(),
+                                            });
+                                    }
+                                    catch { }
+                                    AcadLogger.Warn(
+                                        $"LARGO_FRENTE ({largoFrente:F2}) > LARGO ({outcome.SegmentLength:F2}) " +
+                                        $"[seg={outcome.SegmentId} manzana={manzanaPl.Handle} método={frenteMethod}] " +
+                                        $"— eje anormal, cap a LARGO.");
+                                    largoFrente = outcome.SegmentLength;
+                                    cntEjeAnormal++;
+                                }
 
                                 // Auditoría visual: sub-capa según método
                                 if (fo.CornerA.HasValue && fo.CornerB.HasValue)
@@ -256,7 +287,7 @@ namespace Koovra.Cto.AutocadAddin.Commands
 
                 AcadLogger.Info(
                     $"Asociación completa. SEG: OK={ok} sin={sinSegmento} | " +
-                    $"FRENTE: V4={cntV4} V3={cntV3Proj} V2={cntV2} noEnc={cntFrenteNotFound} | " +
+                    $"FRENTE: V4={cntV4} V3={cntV3Proj} V2={cntV2} noEnc={cntFrenteNotFound} cap={cntEjeAnormal} | " +
                     $"LINGA: PRI={pri} SEC={sec} sin={sinLinga} | " +
                     $"⚠Postes sin manzana={warnSinManzana} ⚠Lingas cruzando esquina={warnLingaCruzando}");
             }
