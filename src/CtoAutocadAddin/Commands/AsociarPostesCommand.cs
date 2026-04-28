@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.AutoCAD.ApplicationServices;
@@ -8,6 +9,7 @@ using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 using Koovra.Cto.AutocadAddin.Geometry;
 using Koovra.Cto.AutocadAddin.Infrastructure;
+using Koovra.Cto.AutocadAddin.Map;
 using Koovra.Cto.AutocadAddin.Models;
 using Koovra.Cto.AutocadAddin.Persistence;
 using Koovra.Cto.AutocadAddin.Services;
@@ -66,9 +68,23 @@ namespace Koovra.Cto.AutocadAddin.Commands
                 $"Lingas PRI: {lingas.Prioridad.Count} SEC: {lingas.Secundaria.Count} | " +
                 $"Postes: {polesIds.Length}");
 
+            // Lectura OD fuera de la transacción de procesamiento (sin DB open)
+            Dictionary<ObjectId, string> calleByOid;
+            if (CtoCache.IsInitialized && CtoCache.CalleByOid != null)
+            {
+                calleByOid = CtoCache.CalleByOid;
+                AcadLogger.Info($"CALLE_1 (cache): {calleByOid.Count}/{segmentos.Count}");
+            }
+            else
+            {
+                calleByOid = ObjectDataReader.ReadCalle1Bulk(segmentos);
+                AcadLogger.Info($"CALLE_1 leído: {calleByOid.Count}/{segmentos.Count} segmentos con nombre.");
+            }
+
             int ok = 0, sinSegmento = 0;
             int pri = 0, sec = 0, sinLinga = 0;
             int warnSinManzana = 0;
+            int cntV4 = 0, cntV3Proj = 0, cntV2 = 0, cntFrenteNotFound = 0;
 
             // Cache para el sanity check posterior: poste → (idLinga, idFrente, lingaObjectId)
             var lingaPorPoste  = new Dictionary<ObjectId, string>();
@@ -82,11 +98,21 @@ namespace Koovra.Cto.AutocadAddin.Commands
                 var associator  = new PoleSegmentAssociator(index, segmentos);
                 var lingAssoc   = new PoleLingaAssociator();
 
+                StreetCornerLibrary cornerLib;
+                if (CtoCache.IsInitialized && CtoCache.CornerLib != null)
+                {
+                    cornerLib = CtoCache.CornerLib;
+                    AcadLogger.Info($"Esquinas (cache): {cornerLib.CornerCount} en {cornerLib.StreetCount} calles.");
+                }
+                else
+                {
+                    cornerLib = StreetCornerLibrary.Build(tr, calleByOid);
+                    AcadLogger.Info($"Esquinas (build): {cornerLib.CornerCount} en {cornerLib.StreetCount} calles.");
+                }
+
                 var pm = new ProgressMeter();
                 pm.Start($"Asociando {polesIds.Length} postes...");
                 pm.SetLimit(polesIds.Length);
-
-                bool layerEnsured = false;
 
                 foreach (ObjectId poleId in polesIds)
                 {
@@ -111,55 +137,66 @@ namespace Koovra.Cto.AutocadAddin.Commands
                             if (!outcome.SegmentObjectId.IsNull)
                                 segCurve = tr.GetObject(outcome.SegmentObjectId, OpenMode.ForRead) as Curve;
 
+                            string calleSegmento = null;
+                            if (!outcome.SegmentObjectId.IsNull)
+                                calleByOid.TryGetValue(outcome.SegmentObjectId, out calleSegmento);
+
+                            FrenteMethod frenteMethod;
                             var fo = FrenteManzanaCalculator.ComputeFrente(
-                                manzanaPl, outcome.PointOnManzana.Value, segCurve);
+                                manzanaPl, outcome.PointOnManzana.Value, segCurve,
+                                cornerLib, calleSegmento, out frenteMethod);
                             if (fo.Found)
                             {
-                                idFrente    = $"{manzanaPl.Handle}#{fo.FrenteIndex}";
+                                // ID_FRENTE: manzanaHandle#segmentHandle para V4/V3_Projection.
+                                // Para V2_DetectCorners usamos el frenteIndex legacy (estabilidad).
+                                if (frenteMethod == FrenteMethod.V2_DetectCorners)
+                                    idFrente = $"{manzanaPl.Handle}#{fo.FrenteIndex}";
+                                else
+                                {
+                                    string segSuffix = outcome.SegmentId ?? "0";
+                                    idFrente = $"{manzanaPl.Handle}#{segSuffix}";
+                                }
                                 largoFrente = fo.Largo;
 
+                                // Auditoría visual: sub-capa según método
                                 if (fo.CornerA.HasValue && fo.CornerB.HasValue)
                                 {
-                                    const string auditLayer = "CTO_AUDIT_FRENTES";
+                                    bool isV4 = frenteMethod == FrenteMethod.V4_StreetCorners;
+                                    string auditLayer = isV4 ? "CTO_AUDIT_FRENTES_V4" : "CTO_AUDIT_FRENTES_V3";
+                                    short  auditColor = isV4 ? (short)3 : (short)6;
 
-                                    if (!layerEnsured)
-                                    {
-                                        var layerTable = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
-                                        if (!layerTable.Has(auditLayer))
-                                        {
-                                            layerTable.UpgradeOpen();
-                                            var lr = new LayerTableRecord
-                                            {
-                                                Name  = auditLayer,
-                                                Color = Color.FromColorIndex(ColorMethod.ByAci, 6),
-                                            };
-                                            layerTable.Add(lr);
-                                            tr.AddNewlyCreatedDBObject(lr, true);
-                                        }
-                                        layerEnsured = true;
-                                    }
+                                    EnsureAuditLayer(tr, db, auditLayer, auditColor);
 
-                                    var bt  = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
-                                    var ms  = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
+                                    var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                                    var ms = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
 
-                                    void AddEntity(Entity e)
+                                    void AddAudit(Entity e)
                                     {
                                         e.Layer = auditLayer;
+                                        e.ColorIndex = auditColor;
                                         ms.AppendEntity(e);
                                         tr.AddNewlyCreatedDBObject(e, true);
                                     }
 
-                                    AddEntity(new Circle(fo.CornerA.Value, Vector3d.ZAxis, 1.0));
-                                    AddEntity(new Circle(fo.CornerB.Value, Vector3d.ZAxis, 1.0));
+                                    AddAudit(new Circle(fo.CornerA.Value, Vector3d.ZAxis, 1.0));
+                                    AddAudit(new Circle(fo.CornerB.Value, Vector3d.ZAxis, 1.0));
 
                                     if (fo.ProjA.HasValue && fo.ProjB.HasValue)
                                     {
-                                        AddEntity(new Circle(fo.ProjA.Value, Vector3d.ZAxis, 1.0));
-                                        AddEntity(new Circle(fo.ProjB.Value, Vector3d.ZAxis, 1.0));
-                                        AddEntity(new Line(fo.CornerA.Value, fo.ProjA.Value));
-                                        AddEntity(new Line(fo.CornerB.Value, fo.ProjB.Value));
-                                        AddEntity(new Line(fo.ProjA.Value,   fo.ProjB.Value));
+                                        AddAudit(new Circle(fo.ProjA.Value, Vector3d.ZAxis, 0.5));
+                                        AddAudit(new Circle(fo.ProjB.Value, Vector3d.ZAxis, 0.5));
+                                        AddAudit(new Line(fo.CornerA.Value, fo.ProjA.Value));
+                                        AddAudit(new Line(fo.CornerB.Value, fo.ProjB.Value));
                                     }
+                                }
+
+                                // Contadores por método
+                                switch (frenteMethod)
+                                {
+                                    case FrenteMethod.V4_StreetCorners: cntV4++;      break;
+                                    case FrenteMethod.V3_Projection:    cntV3Proj++;  break;
+                                    case FrenteMethod.V2_DetectCorners: cntV2++;      break;
+                                    default:                            cntFrenteNotFound++; break;
                                 }
                             }
                         }
@@ -219,6 +256,7 @@ namespace Koovra.Cto.AutocadAddin.Commands
 
                 AcadLogger.Info(
                     $"Asociación completa. SEG: OK={ok} sin={sinSegmento} | " +
+                    $"FRENTE: V4={cntV4} V3={cntV3Proj} V2={cntV2} noEnc={cntFrenteNotFound} | " +
                     $"LINGA: PRI={pri} SEC={sec} sin={sinLinga} | " +
                     $"⚠Postes sin manzana={warnSinManzana} ⚠Lingas cruzando esquina={warnLingaCruzando}");
             }
@@ -260,6 +298,20 @@ namespace Koovra.Cto.AutocadAddin.Commands
                 warn++;
             }
             return warn;
+        }
+
+        private static void EnsureAuditLayer(Transaction tr, Database db, string name, short colorIdx)
+        {
+            var lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
+            if (lt.Has(name)) return;
+            lt.UpgradeOpen();
+            var ltr = new LayerTableRecord
+            {
+                Name  = name,
+                Color = Color.FromColorIndex(ColorMethod.ByAci, colorIdx),
+            };
+            lt.Add(ltr);
+            tr.AddNewlyCreatedDBObject(ltr, true);
         }
     }
 }

@@ -3,9 +3,19 @@ using System.Collections.Generic;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Koovra.Cto.AutocadAddin.Geometry;
+using Koovra.Cto.AutocadAddin.Infrastructure;
+using Koovra.Cto.AutocadAddin.Map;
 
 namespace Koovra.Cto.AutocadAddin.Services
 {
+    public enum FrenteMethod
+    {
+        V4_StreetCorners,  // esquinas de calle nombradas (máxima precisión)
+        V3_Projection,     // proyección de endpoints del segmento sobre la manzana
+        V2_DetectCorners,  // detección angular de esquinas (fallback legacy)
+        NotFound,          // no se pudo calcular
+    }
+
     /// <summary>
     /// Identifica el FRENTE DE MANZANA al que pertenece un punto sobre el borde del polígono
     /// y calcula su largo real.
@@ -141,6 +151,234 @@ namespace Koovra.Cto.AutocadAddin.Services
                 ProjA          = projA,
                 ProjB          = projB,
             };
+        }
+
+        /// <summary>
+        /// Overload V4: calcula LARGO_FRENTE usando la biblioteca de esquinas de calle.
+        /// Cadena de fallback: V4 → V3_Projection → V2_DetectCorners.
+        ///
+        /// V4: toma los dos endpoints del segmento de calle, busca la esquina de calle
+        /// más cercana a cada uno (involucrando la misma calle), proyecta esas esquinas
+        /// sobre la manzana, y mide el arco que contiene <paramref name="pointOnEdge"/>.
+        ///
+        /// V3_Projection: si V4 falla (sin library, sin calleSegmento, o esquinas no encontradas),
+        /// proyecta directamente los endpoints del segmento sobre la manzana y mide el arco.
+        ///
+        /// V2_DetectCorners: si segmentCurve es null, cae al overload con DetectCorners.
+        /// </summary>
+        public static Outcome ComputeFrente(
+            Polyline manzana,
+            Point3d  pointOnEdge,
+            Curve    segmentCurve,
+            StreetCornerLibrary corners,
+            string   calleSegmento,
+            out FrenteMethod method)
+        {
+            method = FrenteMethod.NotFound;
+            var empty = new Outcome { Found = false };
+            if (manzana == null) return empty;
+            if (!manzana.Closed) return empty;
+            if (manzana.NumberOfVertices < 3) return empty;
+
+            // ── V4: esquinas de calle nombradas ───────────────────────────────────────
+            if (corners != null && !string.IsNullOrEmpty(calleSegmento)
+                && calleSegmento != ObjectDataReader.CALLE_SIN_NOMBRE
+                && segmentCurve != null)
+            {
+                string canon = StreetCornerLibrary.Canon(calleSegmento);
+                StreetCorner csStart = corners.FindNearestForStreet(
+                    segmentCurve.StartPoint, canon, GeometryConstants.STREET_CORNER_SEARCH_MAX);
+                StreetCorner csEnd   = corners.FindNearestForStreet(
+                    segmentCurve.EndPoint,   canon, GeometryConstants.STREET_CORNER_SEARCH_MAX);
+
+                if (csStart == null || csEnd == null)
+                {
+                    AcadLogger.Info($"V4 fallback: no se encontraron esquinas para calle '{canon}' " +
+                        $"(csStart={(csStart == null ? "null" : "ok")} csEnd={(csEnd == null ? "null" : "ok")}) " +
+                        $"cerca de S={segmentCurve.StartPoint.X:F1},{segmentCurve.StartPoint.Y:F1} " +
+                        $"E={segmentCurve.EndPoint.X:F1},{segmentCurve.EndPoint.Y:F1}");
+                    goto TryV3;
+                }
+                {
+                    // Proyectar las esquinas de calle sobre la manzana
+                    Point3d pS, pE, pP;
+                    try
+                    {
+                        pS = manzana.GetClosestPointTo(csStart.Point, false);
+                        pE = manzana.GetClosestPointTo(csEnd.Point,   false);
+                        pP = manzana.GetClosestPointTo(pointOnEdge,   false);
+                    }
+                    catch { goto TryV3; }
+
+                    // Validar que las esquinas no están demasiado lejos de la manzana
+                    double distS = (pS - csStart.Point).Length;
+                    double distE = (pE - csEnd.Point).Length;
+                    if (distS > GeometryConstants.CORNER_TO_MANZANA_MAX
+                     || distE > GeometryConstants.CORNER_TO_MANZANA_MAX)
+                    {
+                        AcadLogger.Info($"V4 fallback: esquina muy lejos de manzana (distS={distS:F2} distE={distE:F2} max={GeometryConstants.CORNER_TO_MANZANA_MAX})");
+                        goto TryV3;
+                    }
+
+                    double largo = ComputeArc(manzana, pS, pE, pP);
+                    if (largo > 0)
+                    {
+                        method = FrenteMethod.V4_StreetCorners;
+                        return new Outcome
+                        {
+                            Found          = true,
+                            FrenteIndex    = 0,
+                            StartCornerIdx = -1,
+                            EndCornerIdx   = -1,
+                            Largo          = largo,
+                            CornerA        = pS,            // proyección de csStart sobre manzana
+                            CornerB        = pE,            // proyección de csEnd sobre manzana
+                            ProjA          = csStart.Point, // esquina de calle real (Start)
+                            ProjB          = csEnd.Point,   // esquina de calle real (End)
+                        };
+                    }
+                }
+            }
+
+            TryV3:
+            // ── V3: proyección directa de endpoints del segmento sobre la manzana ────
+            if (segmentCurve != null)
+            {
+                Point3d S = segmentCurve.StartPoint;
+                Point3d E = segmentCurve.EndPoint;
+
+                Point3d pS, pE, pP;
+                try
+                {
+                    pS = manzana.GetClosestPointTo(S, false);
+                    pE = manzana.GetClosestPointTo(E, false);
+                    pP = manzana.GetClosestPointTo(pointOnEdge, false);
+                }
+                catch { goto TryV2; }
+
+                if ((pE - pS).Length < 1e-6)
+                {
+                    AcadLogger.Info($"V3 fallback: pS==pE (ambos endpoints del segmento proyectan al mismo punto en la manzana)");
+                    goto TryV2;
+                }
+
+                double largo = ComputeArc(manzana, pS, pE, pP);
+                if (largo > 0)
+                {
+                    method = FrenteMethod.V3_Projection;
+                    return new Outcome
+                    {
+                        Found          = true,
+                        FrenteIndex    = 0,
+                        StartCornerIdx = -1,
+                        EndCornerIdx   = -1,
+                        Largo          = largo,
+                        CornerA        = pS,
+                        CornerB        = pE,
+                        ProjA          = S,
+                        ProjB          = E,
+                    };
+                }
+            }
+
+            TryV2:
+            // ── V2: DetectCorners legacy ──────────────────────────────────────────────
+            {
+                var v2 = ComputeFrente(manzana, pointOnEdge, segmentCurve);
+                if (v2.Found)
+                {
+                    method = FrenteMethod.V2_DetectCorners;
+                    return v2;
+                }
+            }
+
+            return empty;
+        }
+
+        /// <summary>
+        /// Calcula el largo del arco de la polilínea cerrada entre pS y pE que
+        /// contiene la proyección del poste (pP). Si pP no cae claramente en ninguno
+        /// de los dos arcos (ruido numérico), elige el más corto.
+        /// Devuelve 0 si no se puede calcular.
+        /// </summary>
+        private static double ComputeArc(Polyline manzana, Point3d pS, Point3d pE, Point3d pP)
+        {
+            double dS = SafeGetDistAtPoint(manzana, pS);
+            double dE = SafeGetDistAtPoint(manzana, pE);
+            double dP = SafeGetDistAtPoint(manzana, pP);
+            if (dS < 0 || dE < 0 || dP < 0) return 0;
+
+            double perimetro = manzana.Length;
+            double lo = Math.Min(dS, dE);
+            double hi = Math.Max(dS, dE);
+            double directArc = hi - lo;
+            double otherArc  = perimetro - directArc;
+
+            bool dPInDirect = dP >= lo - 1e-6 && dP <= hi + 1e-6;
+            double largo = dPInDirect ? directArc : otherArc;
+
+            // Defensa contra ruido numérico
+            if (largo <= 0 || largo > perimetro)
+                largo = Math.Min(directArc, otherArc);
+
+            if (largo <= 0) return 0;
+            return largo;
+        }
+
+        /// <summary>
+        /// Obtiene la distancia acumulada a lo largo de la polyline al punto dado.
+        /// Más robusto que GetDistAtPoint directo: si el punto no está exactamente sobre
+        /// la polyline (error de precisión flotante), re-proyecta antes de medir.
+        /// Devuelve -1 si no se puede calcular.
+        /// </summary>
+        private static double SafeGetDistAtPoint(Polyline pl, Point3d pt)
+        {
+            // Intento 1: el punto ya debería estar sobre la polyline.
+            try { return pl.GetDistAtPoint(pt); }
+            catch { }
+
+            // Intento 2: re-proyectar sobre la polyline para eliminar error flotante.
+            try
+            {
+                Point3d snapped = pl.GetClosestPointTo(pt, false);
+                return pl.GetDistAtPoint(snapped);
+            }
+            catch { }
+
+            // Intento 3: recorrer segmentos manualmente y encontrar el más cercano.
+            try
+            {
+                int n = pl.NumberOfVertices;
+                double bestDist  = double.MaxValue;
+                double accumDist = 0.0;
+                double bestAccum = 0.0;
+
+                for (int i = 0; i < n; i++)
+                {
+                    LineSegment3d seg = pl.GetLineSegmentAt(i);
+                    Vector3d v   = seg.EndPoint - seg.StartPoint;
+                    double   len = v.Length;
+                    if (len < 1e-12) { accumDist += len; continue; }
+
+                    // Proyección paramétrica del punto sobre el segmento
+                    double t = (pt - seg.StartPoint).DotProduct(v) / (len * len);
+                    t = Math.Max(0.0, Math.Min(1.0, t));
+                    Point3d proj = seg.StartPoint + v * t;
+                    double  d    = (pt - proj).Length;
+
+                    if (d < bestDist)
+                    {
+                        bestDist  = d;
+                        bestAccum = accumDist + t * len;
+                    }
+                    accumDist += len;
+                }
+
+                if (bestDist < double.MaxValue) return bestAccum;
+            }
+            catch { }
+
+            return -1;
         }
 
         // ── Helpers ──────────────────────────────────────────────────────────

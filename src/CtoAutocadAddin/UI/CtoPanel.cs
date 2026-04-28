@@ -9,6 +9,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Koovra.Cto.AutocadAddin.Geometry;
 using Koovra.Cto.AutocadAddin.Infrastructure;
+using Koovra.Cto.AutocadAddin.Map;
 using Koovra.Cto.AutocadAddin.Models;
 using Koovra.Cto.AutocadAddin.Persistence;
 using Koovra.Cto.AutocadAddin.Services;
@@ -30,6 +31,8 @@ namespace Koovra.Cto.AutocadAddin.UI
         // Animation
         private Timer _fadeTimer;
         private Timer _pulseTimer;
+
+        private LoadingOverlay _loadingOverlay;
 
         public CtoPanel()
         {
@@ -71,6 +74,115 @@ namespace Koovra.Cto.AutocadAddin.UI
                 _rowDesplegar.PulseTick();
             };
             _pulseTimer.Start();
+
+            // Mostrar overlay y disparar pre-build de StreetCornerLibrary
+            _loadingOverlay = new LoadingOverlay();
+            Controls.Add(_loadingOverlay);
+            _loadingOverlay.BringToFront();
+
+            // BeginInvoke deja que el overlay se dibuje antes de empezar el trabajo pesado
+            BeginInvoke(new Action(InitializeCacheAsync));
+        }
+
+        // ── Cache init ───────────────────────────────────────────────────────
+
+        private void InitializeCacheAsync()
+        {
+            try
+            {
+                var doc = AcApp.DocumentManager.MdiActiveDocument;
+                if (doc == null)
+                {
+                    _loadingOverlay.Status = "No hay documento activo";
+                    return;
+                }
+                var ed = doc.Editor;
+
+                _loadingOverlay.Status = "Detectando manzanas...";
+                Application.DoEvents();
+                var manzanas = SelectionService.SelectManzanas(ed);
+                CtoCache.ManzanasCached = manzanas;
+
+                _loadingOverlay.Status = "Detectando segmentos de calle...";
+                Application.DoEvents();
+                var segmentos = SelectionService.SelectSegmentos(ed);
+                CtoCache.SegmentosCached = segmentos;
+
+                _loadingOverlay.Status = $"Leyendo nombres de calle ({segmentos.Count} segmentos)...";
+                Application.DoEvents();
+                var calleByOid = ObjectDataReader.ReadCalle1Bulk(segmentos);
+                CtoCache.CalleByOid = calleByOid;
+
+                _loadingOverlay.Status = "Construyendo biblioteca de esquinas...";
+                Application.DoEvents();
+                StreetCornerLibrary lib = null;
+                using (doc.LockDocument())
+                using (var tr = doc.Database.TransactionManager.StartTransaction())
+                {
+                    lib = StreetCornerLibrary.Build(tr, calleByOid);
+                    tr.Commit();
+                }
+                CtoCache.CornerLib = lib;
+
+                _loadingOverlay.Status =
+                    $"Listo · {manzanas.Count} manzanas · {segmentos.Count} segmentos · {lib.CornerCount} esquinas";
+
+                // Persistir también en SelectionContext para que los pasos posteriores
+                // no tengan que re-seleccionar
+                SelectionContext.Instance.SetManzanas(manzanas);
+                SelectionContext.Instance.SetSegmentos(segmentos);
+
+                AcadLogger.Info(
+                    $"CtoCache inicializado: {manzanas.Count} manzanas, {segmentos.Count} segmentos, " +
+                    $"{calleByOid.Count} con CALLE_1, {lib.CornerCount} esquinas en {lib.StreetCount} calles");
+
+                // Breve pausa para que el usuario vea el "Listo"
+                var doneTimer = new Timer { Interval = 700 };
+                doneTimer.Tick += (s, e) =>
+                {
+                    doneTimer.Stop();
+                    doneTimer.Dispose();
+                    FadeOutOverlay();
+                };
+                doneTimer.Start();
+            }
+            catch (Exception ex)
+            {
+                AcadLogger.Warn($"InitializeCacheAsync falló: {ex.Message}");
+                if (_loadingOverlay != null)
+                    _loadingOverlay.Status = "Error: " + ex.Message;
+                var errTimer = new Timer { Interval = 2500 };
+                errTimer.Tick += (s, e) =>
+                {
+                    errTimer.Stop();
+                    errTimer.Dispose();
+                    FadeOutOverlay();
+                };
+                errTimer.Start();
+            }
+        }
+
+        private void FadeOutOverlay()
+        {
+            if (_loadingOverlay == null) return;
+            var fadeTimer = new Timer { Interval = 16 };
+            fadeTimer.Tick += (s, e) =>
+            {
+                if (_loadingOverlay == null)
+                {
+                    fadeTimer.Stop();
+                    fadeTimer.Dispose();
+                    return;
+                }
+                // Implementación simple: remove directo
+                Controls.Remove(_loadingOverlay);
+                _loadingOverlay.Stop();
+                _loadingOverlay.Dispose();
+                _loadingOverlay = null;
+                fadeTimer.Stop();
+                fadeTimer.Dispose();
+            };
+            fadeTimer.Start();
         }
 
         // ── Construcción de UI ───────────────────────────────────────────────
