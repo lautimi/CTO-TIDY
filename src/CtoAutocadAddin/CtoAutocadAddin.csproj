@@ -57,6 +57,11 @@
       <Private>False</Private>
       <SpecificVersion>False</SpecificVersion>
     </Reference>
+    <Reference Include="ManagedMapApi">
+      <HintPath>$(AutocadInstallDir)\Map\ManagedMapApi.dll</HintPath>
+      <Private>False</Private>
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
@@ -65,6 +70,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Commands\AsociarPostesCommand.cs" />
+    <Compile Include="Commands\DumpCallesCommand.cs" />
     <Compile Include="Commands\ConfigCommand.cs" />
     <Compile Include="Commands\PanelCommand.cs" />
     <Compile Include="UI\CtoPanel.cs" />
@@ -90,12 +96,17 @@
     <Compile Include="Persistence\XDataManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Services\CtoBlockDeployer.cs" />
+    <Compile Include="Services\StreetCornerLibrary.cs" />
+    <Compile Include="Commands\DumpEsquinasCommand.cs" />
     <Compile Include="Services\FrenteManzanaCalculator.cs" />
     <Compile Include="Services\PoleLingaAssociator.cs" />
     <Compile Include="Services\PoleSegmentAssociator.cs" />
+    <Compile Include="Services\CtoCache.cs" />
     <Compile Include="Services\SelectionService.cs" />
     <Compile Include="Services\TextBufferCollector.cs" />
+    <Compile Include="UI\LoadingOverlay.cs" />
     <Compile Include="UI\SettingsDialog.cs" />
+    <Compile Include="Map\ObjectDataReader.cs" />
     <Compile Include="AddinApplication.cs" />
   </ItemGroup>
   <ItemGroup>
