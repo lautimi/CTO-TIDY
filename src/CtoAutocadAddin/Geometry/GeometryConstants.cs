@@ -16,13 +16,13 @@ namespace Koovra.Cto.AutocadAddin.Geometry
         /// <summary>Distancia máxima permitida entre un endpoint de segmento y la esquina-de-calle más cercana.</summary>
         public const double STREET_CORNER_SEARCH_MAX = 10.0;
         /// <summary>Distancia máxima permitida entre una esquina-de-calle y la polilínea de manzana (sino, fallback).</summary>
-        public const double CORNER_TO_MANZANA_MAX = 2.0;
+        public const double CORNER_TO_MANZANA_MAX = 8.0;
         /// <summary>
         /// Distancia máxima entre el punto de intersección de dos líneas de calle
         /// y el endpoint más cercano de cada segmento, para considerarlo esquina real.
         /// Cubre cruces con plaza central (cordones) donde los endpoints de las
         /// calles transversales pueden estar separados por el ancho de la plaza.
         /// </summary>
-        public const double MAX_INTERSECTION_DIST = 15.0;
+        public const double MAX_INTERSECTION_DIST = 2.0;
     }
 }

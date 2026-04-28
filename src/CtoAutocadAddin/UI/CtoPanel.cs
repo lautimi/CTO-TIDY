@@ -28,6 +28,10 @@ namespace Koovra.Cto.AutocadAddin.UI
         private RichTextBox   _log;
         private NumericUpDown _nudRadius;
 
+        private Panel         _warningsSection;
+        private Label         _warningHeader;
+        private FlowLayoutPanel _warningList;
+
         // Animation
         private Timer _fadeTimer;
         private Timer _pulseTimer;
@@ -183,6 +187,55 @@ namespace Koovra.Cto.AutocadAddin.UI
                 fadeTimer.Dispose();
             };
             fadeTimer.Start();
+        }
+
+        // ── Warnings: postes en esquina ──────────────────────────────────────
+
+        private void RefreshWarningsPanel()
+        {
+            if (_warningsSection == null) return;
+            var warnings = CtoCache.PostesEnEsquina;
+            if (warnings == null || warnings.Count == 0)
+            {
+                _warningsSection.Visible = false;
+                _warningsSection.Height  = 0;
+                return;
+            }
+
+            _warningHeader.Text = $"⚠  {warnings.Count} poste{(warnings.Count != 1 ? "s" : "")} en esquina (click para zoom)";
+            _warningList.Controls.Clear();
+
+            foreach (var w in warnings)
+            {
+                string label = string.IsNullOrEmpty(w.Calle)
+                    ? $"H:{w.HandleHex}  ({w.LargoFrenteOriginal:F1}→{w.LargoCap:F1}m  {w.FrenteMethod})"
+                    : $"H:{w.HandleHex}  {w.Calle}  ({w.LargoFrenteOriginal:F1}→{w.LargoCap:F1}m  {w.FrenteMethod})";
+
+                var lbl = new LinkLabel
+                {
+                    Text            = label,
+                    AutoSize        = true,
+                    LinkColor       = Color.FromArgb(0x00, 0xE5, 0xFF),
+                    ActiveLinkColor = Color.White,
+                    Font            = new WinFont("Consolas", 7.5f),
+                    BackColor       = FuturisticTheme.BgBase,
+                    ForeColor       = Color.FromArgb(0xFF, 0xC1, 0x07),
+                    Tag             = w.HandleHex,
+                    Margin          = new Padding(4, 1, 4, 1),
+                };
+                lbl.LinkClicked += OnWarnLinkClicked;
+                _warningList.Controls.Add(lbl);
+            }
+
+            int rowH = Math.Min(warnings.Count * 20 + 30, 120); // max 120px
+            _warningsSection.Height  = rowH;
+            _warningsSection.Visible = true;
+        }
+
+        private void OnWarnLinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            if (sender is LinkLabel lbl && lbl.Tag is string handle)
+                Commands.ZoomHandleCommand.ZoomToHandle(handle);
         }
 
         // ── Construcción de UI ───────────────────────────────────────────────
@@ -360,7 +413,39 @@ namespace Koovra.Cto.AutocadAddin.UI
             };
             layout.Controls.Add(_log, 0, 10);
 
+            // ── Warnings panel (postes en esquina) ──────────────────────────
+            _warningHeader = new Label
+            {
+                Text      = "",
+                ForeColor = Color.FromArgb(0xFF, 0xC1, 0x07), // amarillo warning
+                BackColor = FuturisticTheme.BgPanel,
+                Dock      = DockStyle.Top,
+                Height    = 24,
+                Padding   = new Padding(8, 4, 0, 0),
+                Font      = new WinFont("Segoe UI", 8.5f, FontStyle.Bold),
+            };
+
+            _warningList = new FlowLayoutPanel
+            {
+                FlowDirection = System.Windows.Forms.FlowDirection.TopDown,
+                AutoScroll    = true,
+                Dock          = DockStyle.Fill,
+                BackColor     = FuturisticTheme.BgBase,
+                WrapContents  = false,
+            };
+
+            _warningsSection = new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 0,
+                BackColor = FuturisticTheme.BgPanel,
+                Visible   = false,
+            };
+            _warningsSection.Controls.Add(_warningList);
+            _warningsSection.Controls.Add(_warningHeader);
+
             Controls.Add(layout);
+            Controls.Add(_warningsSection);
             AppendLog("Panel listo. Ejecutá los pasos en orden o usá 'Ejecutar Todo'.", LogLevel.Info);
         }
 
@@ -434,108 +519,186 @@ namespace Koovra.Cto.AutocadAddin.UI
             }
 
             var doc = AcApp.DocumentManager.MdiActiveDocument;
+            var db  = doc.Database;
             var ed  = doc.Editor;
 
-            var manzanas  = SelectionService.SelectManzanas(ed);
-            var segmentos = SelectionService.SelectSegmentos(ed);
+            ObjectIdCollection manzanas = SelectionContext.Instance.Manzanas;
+            if (manzanas == null || manzanas.Count == 0)
+            {
+                manzanas = SelectionService.SelectManzanas(ed);
+                if (manzanas.Count == 0) { _rowAsociar.SetStatus(StepStatus.Warning); return new StepResult(false, "Sin entidades en capa MANZANA"); }
+                SelectionContext.Instance.SetManzanas(manzanas);
+            }
 
-            if (manzanas.Count == 0)  { _rowAsociar.SetStatus(StepStatus.Warning); return new StepResult(false, "Sin entidades en capa MANZANA"); }
-            if (segmentos.Count == 0) { _rowAsociar.SetStatus(StepStatus.Warning); return new StepResult(false, "Sin entidades en capa SEGMENTO"); }
+            ObjectIdCollection segmentos = SelectionContext.Instance.Segmentos;
+            if (segmentos == null || segmentos.Count == 0)
+            {
+                segmentos = SelectionService.SelectSegmentos(ed);
+                if (segmentos.Count == 0) { _rowAsociar.SetStatus(StepStatus.Warning); return new StepResult(false, "Sin entidades en capa SEGMENTO"); }
+                SelectionContext.Instance.SetSegmentos(segmentos);
+            }
 
-            SelectionContext.Instance.SetManzanas(manzanas);
-            SelectionContext.Instance.SetSegmentos(segmentos);
+            var lingas = SelectionService.SelectLingas(ed);
 
-            // Lingas de acero (auto-selección por capa)
-            SelectionService.LingaSelection lingas = SelectionService.SelectLingas(ed);
+            // Lectura OD (usa cache si está disponible)
+            Dictionary<ObjectId, string> calleByOid;
+            if (CtoCache.IsInitialized && CtoCache.CalleByOid != null)
+                calleByOid = CtoCache.CalleByOid;
+            else
+                calleByOid = ObjectDataReader.ReadCalle1Bulk(segmentos);
+
+            // Reset warnings
+            CtoCache.PostesEnEsquina = new System.Collections.Generic.List<Models.PosteWarning>();
 
             int ok = 0, sin = 0;
             int pri = 0, sec = 0, sinLinga = 0;
-            int warnSinManzana = 0, warnLingaCruzando = 0;
+            int warnSinManzana = 0;
+            int cntV4 = 0, cntV3 = 0, cntV2 = 0, cntNoEnc = 0, cntCap = 0;
 
             var lingaPorPoste  = new Dictionary<ObjectId, string>();
             var frentePorPoste = new Dictionary<ObjectId, string>();
             var lingaIdByHex   = new Dictionary<string, ObjectId>();
 
             using (doc.LockDocument())
-            using (var tr = doc.Database.TransactionManager.StartTransaction())
+            using (var tr = db.TransactionManager.StartTransaction())
             {
-                var idx       = new SpatialIndex(tr, manzanas);
-                var asoc      = new PoleSegmentAssociator(idx, segmentos);
-                var lingAssoc = new PoleLingaAssociator();
-                foreach (ObjectId pid in polesIds)
+                var index      = new SpatialIndex(tr, manzanas);
+                var associator = new PoleSegmentAssociator(index, segmentos);
+                var lingAssoc  = new PoleLingaAssociator();
+
+                Services.StreetCornerLibrary cornerLib;
+                if (CtoCache.IsInitialized && CtoCache.CornerLib != null)
+                    cornerLib = CtoCache.CornerLib;
+                else
+                    cornerLib = Services.StreetCornerLibrary.Build(tr, calleByOid);
+
+                foreach (ObjectId poleId in polesIds)
                 {
-                    var out_ = asoc.AssociatePole(tr, pid);
-                    var lo   = lingAssoc.AssociatePole(tr, pid, lingas.Prioridad, lingas.Secundaria);
+                    var outcome = associator.AssociatePole(tr, poleId);
+                    var lo      = lingAssoc.AssociatePole(tr, poleId, lingas.Prioridad, lingas.Secundaria);
 
                     string idFrente    = string.Empty;
                     double largoFrente = 0.0;
-                    if (out_.Estado == AddressMatcher.OK
-                        && !out_.ManzanaObjectId.IsNull
-                        && out_.PointOnManzana.HasValue)
+
+                    if (outcome.Estado == AddressMatcher.OK
+                        && !outcome.ManzanaObjectId.IsNull
+                        && outcome.PointOnManzana.HasValue)
                     {
-                        var mpl = tr.GetObject(out_.ManzanaObjectId, OpenMode.ForRead) as Polyline;
-                        if (mpl != null)
+                        var manzanaPl = tr.GetObject(outcome.ManzanaObjectId, OpenMode.ForRead) as Polyline;
+                        if (manzanaPl != null)
                         {
-                            var fo = FrenteManzanaCalculator.ComputeFrente(mpl, out_.PointOnManzana.Value);
+                            Curve segCurve = null;
+                            if (!outcome.SegmentObjectId.IsNull)
+                                segCurve = tr.GetObject(outcome.SegmentObjectId, OpenMode.ForRead) as Curve;
+
+                            string calleSegmento = null;
+                            if (!outcome.SegmentObjectId.IsNull)
+                                calleByOid.TryGetValue(outcome.SegmentObjectId, out calleSegmento);
+
+                            Services.FrenteMethod frenteMethod;
+                            var fo = Services.FrenteManzanaCalculator.ComputeFrente(
+                                manzanaPl, outcome.PointOnManzana.Value, segCurve,
+                                cornerLib, calleSegmento, out frenteMethod);
+
                             if (fo.Found)
                             {
-                                idFrente    = $"{mpl.Handle}#{fo.FrenteIndex}";
+                                if (frenteMethod == Services.FrenteMethod.V2_DetectCorners)
+                                    idFrente = $"{manzanaPl.Handle}#{fo.FrenteIndex}";
+                                else
+                                    idFrente = $"{manzanaPl.Handle}#{outcome.SegmentId ?? "0"}";
+
                                 largoFrente = fo.Largo;
+
+                                // ── Regla de negocio: LARGO_FRENTE ≤ LARGO ──────────────
+                                if (largoFrente > outcome.SegmentLength && outcome.SegmentLength > 0)
+                                {
+                                    try
+                                    {
+                                        var ew = tr.GetObject(poleId, OpenMode.ForRead) as Entity;
+                                        string hx = ew?.Handle.ToString() ?? "";
+                                        if (!string.IsNullOrEmpty(hx))
+                                            CtoCache.PostesEnEsquina.Add(new Models.PosteWarning
+                                            {
+                                                HandleHex           = hx,
+                                                Calle               = calleSegmento ?? "",
+                                                LargoFrenteOriginal = largoFrente,
+                                                LargoCap            = outcome.SegmentLength,
+                                                FrenteMethod        = frenteMethod.ToString(),
+                                            });
+                                    }
+                                    catch { }
+                                    AcadLogger.Warn(
+                                        $"LARGO_FRENTE ({largoFrente:F2}) > LARGO ({outcome.SegmentLength:F2}) " +
+                                        $"[seg={outcome.SegmentId} manzana={manzanaPl.Handle} método={frenteMethod}] — eje anormal, cap a LARGO.");
+                                    largoFrente = outcome.SegmentLength;
+                                    cntCap++;
+                                }
+
+                                switch (frenteMethod)
+                                {
+                                    case Services.FrenteMethod.V4_StreetCorners: cntV4++;    break;
+                                    case Services.FrenteMethod.V3_Projection:    cntV3++;    break;
+                                    case Services.FrenteMethod.V2_DetectCorners: cntV2++;    break;
+                                    default:                                      cntNoEnc++; break;
+                                }
                             }
                         }
                     }
                     else
                     {
-                        var ent = tr.GetObject(pid, OpenMode.ForRead) as Entity;
+                        var ent = tr.GetObject(poleId, OpenMode.ForRead) as Entity;
                         if (ent != null)
                         {
                             var pos = Extensions.GetInsertionOrPosition(ent);
                             AcadLogger.Warn(
                                 $"Poste <H:{ent.Handle}> sin manzana asociada. " +
-                                $"Pos: ({pos.X:F2}, {pos.Y:F2}). " +
-                                $"CTO_ZOOM_HANDLE {ent.Handle}");
+                                $"Pos: ({pos.X:F2}, {pos.Y:F2}). CTO_ZOOM_HANDLE {ent.Handle}");
                         }
                         warnSinManzana++;
                     }
 
-                    XDataManager.SetValues(tr, pid, new (string, object)[]
+                    XDataManager.SetValues(tr, poleId, new (string, object)[]
                     {
-                        (XDataKeys.ID_SEGMENT,   out_.SegmentId     ?? string.Empty),
-                        (XDataKeys.REVISAR,      out_.Estado        ?? AddressMatcher.SIN_SEGMENTO),
-                        (XDataKeys.LARGO,        (object)out_.SegmentLength),
-                        (XDataKeys.ID_LINGA,     lo.LingaHandleHex  ?? string.Empty),
-                        (XDataKeys.LINGA_TIPO,   lo.LingaTipo       ?? string.Empty),
+                        (XDataKeys.ID_SEGMENT,   outcome.SegmentId     ?? string.Empty),
+                        (XDataKeys.REVISAR,      outcome.Estado        ?? AddressMatcher.SIN_SEGMENTO),
+                        (XDataKeys.LARGO,        (object)outcome.SegmentLength),
+                        (XDataKeys.ID_LINGA,     lo.LingaHandleHex     ?? string.Empty),
+                        (XDataKeys.LINGA_TIPO,   lo.LingaTipo          ?? string.Empty),
                         (XDataKeys.LARGO_LINGA,  (object)lo.LingaLargo),
                         (XDataKeys.ID_FRENTE,    idFrente),
                         (XDataKeys.LARGO_FRENTE, (object)largoFrente),
                     });
-                    if (out_.Estado == AddressMatcher.OK) ok++; else sin++;
 
+                    if (outcome.Estado == AddressMatcher.OK) ok++; else sin++;
                     if      (lo.EncontradaPrioridad)  pri++;
                     else if (lo.EncontradaSecundaria) sec++;
                     else                              sinLinga++;
 
                     if (lo.EncontradaPrioridad && !string.IsNullOrEmpty(lo.LingaHandleHex))
                     {
-                        lingaPorPoste[pid]  = lo.LingaHandleHex;
-                        frentePorPoste[pid] = idFrente;
+                        lingaPorPoste[poleId]  = lo.LingaHandleHex;
+                        frentePorPoste[poleId] = idFrente;
                         if (!lingaIdByHex.ContainsKey(lo.LingaHandleHex))
                             lingaIdByHex[lo.LingaHandleHex] = lo.LingaId;
                     }
                 }
 
-                warnLingaCruzando = Commands.AsociarPostesCommand.SanityCheckLingasEnDosFrentes(
+                int warnLingaCruzando = Commands.AsociarPostesCommand.SanityCheckLingasEnDosFrentes(
                     tr, lingaPorPoste, frentePorPoste, lingaIdByHex);
 
                 tr.Commit();
-            }
 
-            _rowAsociar.SetStatus(ok > 0 ? StepStatus.Ok : StepStatus.Warning);
-            _rowAsociar.SetInfo($"OK={ok} PRI={pri} SEC={sec} ⚠P={warnSinManzana} ⚠L={warnLingaCruzando}");
-            return new StepResult(ok > 0,
-                $"Paso 2 — SEG: OK={ok} sin={sin} | LINGA: PRI={pri} SEC={sec} sin={sinLinga} | " +
-                $"⚠ Postes sin manzana={warnSinManzana} ⚠ Lingas cruzando esquina={warnLingaCruzando} " +
-                $"(Manzanas={manzanas.Count} Segmentos={segmentos.Count} Lingas={lingas.TotalCount})");
+                int capCount = CtoCache.PostesEnEsquina.Count;
+                _rowAsociar.SetStatus(ok > 0 ? StepStatus.Ok : StepStatus.Warning);
+                _rowAsociar.SetInfo($"OK={ok} V4={cntV4} V3={cntV3} V2={cntV2} ⚠cap={capCount} ⚠P={warnSinManzana} ⚠L={warnLingaCruzando}");
+
+                // Actualizar panel de warnings
+                BeginInvoke(new Action(RefreshWarningsPanel));
+
+                return new StepResult(ok > 0,
+                    $"Paso 2 — SEG: OK={ok} sin={sin} | FRENTE: V4={cntV4} V3={cntV3} V2={cntV2} noEnc={cntNoEnc} cap={capCount} | " +
+                    $"LINGA: PRI={pri} SEC={sec} sin={sinLinga} | ⚠Postes sin manzana={warnSinManzana} ⚠Lingas cruzando={warnLingaCruzando}");
+            }
         }
 
         // ── Paso 3 ───────────────────────────────────────────────────────────

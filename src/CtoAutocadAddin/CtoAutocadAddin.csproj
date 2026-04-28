@@ -91,6 +91,7 @@
     <Compile Include="Infrastructure\AcadLogger.cs" />
     <Compile Include="Models\AddinSettings.cs" />
     <Compile Include="Models\PoleInfo.cs" />
+    <Compile Include="Models\PosteWarning.cs" />
     <Compile Include="Models\SelectionContext.cs" />
     <Compile Include="Persistence\AppNames.cs" />
     <Compile Include="Persistence\XDataManager.cs" />

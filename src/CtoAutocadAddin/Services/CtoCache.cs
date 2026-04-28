@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Autodesk.AutoCAD.DatabaseServices;
+using Koovra.Cto.AutocadAddin.Models;
 
 namespace Koovra.Cto.AutocadAddin.Services
 {
@@ -14,6 +15,7 @@ namespace Koovra.Cto.AutocadAddin.Services
         public static Dictionary<ObjectId, string> CalleByOid { get; set; }
         public static ObjectIdCollection SegmentosCached { get; set; }
         public static ObjectIdCollection ManzanasCached  { get; set; }
+        public static List<PosteWarning> PostesEnEsquina { get; set; } = new List<PosteWarning>();
 
         public static bool IsInitialized => CornerLib != null;
 
@@ -23,6 +25,7 @@ namespace Koovra.Cto.AutocadAddin.Services
             CalleByOid = null;
             SegmentosCached = null;
             ManzanasCached = null;
+            PostesEnEsquina = new List<PosteWarning>();
         }
     }
 }
