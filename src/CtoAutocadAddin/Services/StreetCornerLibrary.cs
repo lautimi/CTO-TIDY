@@ -80,6 +80,9 @@ namespace Koovra.Cto.AutocadAddin.Services
             int segmentsSinNombre = 0;
             int segmentsNoLine = 0;
 
+            // Lista de segmentos Line para la fase 2 (intersección geométrica).
+            var segsWithLine = new List<(ObjectId id, Line line, string calleCanon)>();
+
             foreach (var kv in calleByOid)
             {
                 string calle = Canon(kv.Value);
@@ -99,6 +102,11 @@ namespace Koovra.Cto.AutocadAddin.Services
                 AddEndpoint(grid, curve.StartPoint, calle, tol);
                 AddEndpoint(grid, curve.EndPoint, calle, tol);
                 endpointsAdded += 2;
+
+                // Acumular solo Lines para la fase 2.
+                var lineObj = curve as Line;
+                if (lineObj != null)
+                    segsWithLine.Add((kv.Key, lineObj, calle));
             }
 
             // Detectar esquinas: por cada celda, comparar todos los endpoints contra
@@ -155,7 +163,12 @@ namespace Koovra.Cto.AutocadAddin.Services
                 }
             }
 
-            // Indexar por calle
+            int phase1Count = corners.Count;
+
+            // Fase 2: intersección geométrica de líneas extendidas.
+            int phase2Count = BuildPhase2_LineIntersections(segsWithLine, corners, seenKeys);
+
+            // Indexar por calle (incluye corners de fase 1 y fase 2).
             var byStreet = new Dictionary<string, List<StreetCorner>>();
             foreach (var c in corners)
             {
@@ -174,8 +187,98 @@ namespace Koovra.Cto.AutocadAddin.Services
                 listB.Add(c);
             }
 
-            AcadLogger.Info($"StreetCornerLibrary: {segmentsConsidered} segs / {endpointsAdded} endpoints → {corners.Count} esquinas, {byStreet.Count} calles. (sinNombre={segmentsSinNombre}, noLine={segmentsNoLine})");
+            AcadLogger.Info(
+                $"StreetCornerLibrary: {segmentsConsidered} segs / {endpointsAdded} endpoints → " +
+                $"{corners.Count} esquinas ({phase1Count} fase1, {phase2Count} fase2), " +
+                $"{byStreet.Count} calles. (sinNombre={segmentsSinNombre}, noLine={segmentsNoLine})");
             return new StreetCornerLibrary(corners, byStreet);
+        }
+
+        private static int BuildPhase2_LineIntersections(
+            List<(ObjectId id, Line line, string calleCanon)> segs,
+            List<StreetCorner> corners,
+            HashSet<string> added)
+        {
+            // Poblar el set de deduplicación con las esquinas ya existentes de fase 1.
+            // Las claves de fase 1 usan un formato diferente al de fase 2, así que
+            // usamos MakeDedupeKey para agregar las existentes antes de iterar.
+            foreach (var ec in corners)
+            {
+                string existingKey = MakeDedupeKey(ec.CalleA, ec.CalleB, ec.Point);
+                added.Add(existingKey);
+            }
+
+            int count = 0;
+            int n = segs.Count;
+            for (int i = 0; i < n; i++)
+            {
+                for (int j = i + 1; j < n; j++)
+                {
+                    var a = segs[i];
+                    var b = segs[j];
+                    if (a.calleCanon == b.calleCanon) continue;
+
+                    Point3d ip;
+                    if (!TryLineIntersection(a.line, b.line, out ip)) continue;
+
+                    double dA = Math.Min(
+                        (ip - a.line.StartPoint).Length,
+                        (ip - a.line.EndPoint).Length);
+                    double dB = Math.Min(
+                        (ip - b.line.StartPoint).Length,
+                        (ip - b.line.EndPoint).Length);
+                    if (dA > GeometryConstants.MAX_INTERSECTION_DIST) continue;
+                    if (dB > GeometryConstants.MAX_INTERSECTION_DIST) continue;
+
+                    string key = MakeDedupeKey(a.calleCanon, b.calleCanon, ip);
+                    if (!added.Add(key)) continue;
+
+                    corners.Add(new StreetCorner
+                    {
+                        Point  = ip,
+                        CalleA = a.calleCanon,
+                        CalleB = b.calleCanon,
+                    });
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        private static bool TryLineIntersection(Line a, Line b, out Point3d ip)
+        {
+            ip = Point3d.Origin;
+            Point3d p1 = a.StartPoint;
+            Point3d p2 = a.EndPoint;
+            Point3d p3 = b.StartPoint;
+            Point3d p4 = b.EndPoint;
+
+            double dx1 = p2.X - p1.X;
+            double dy1 = p2.Y - p1.Y;
+            double dx2 = p4.X - p3.X;
+            double dy2 = p4.Y - p3.Y;
+
+            double denom = dx1 * dy2 - dy1 * dx2;
+            double len1 = Math.Sqrt(dx1 * dx1 + dy1 * dy1);
+            double len2 = Math.Sqrt(dx2 * dx2 + dy2 * dy2);
+            if (len1 < 1e-9 || len2 < 1e-9) return false;
+            double sinTheta = Math.Abs(denom) / (len1 * len2);
+            if (sinTheta < 0.05) return false; // < ~3°
+
+            double t = ((p3.X - p1.X) * dy2 - (p3.Y - p1.Y) * dx2) / denom;
+            double x = p1.X + t * dx1;
+            double y = p1.Y + t * dy1;
+            ip = new Point3d(x, y, 0);
+            return true;
+        }
+
+        private static string MakeDedupeKey(string calleA, string calleB, Point3d p)
+        {
+            string a = string.CompareOrdinal(calleA, calleB) <= 0 ? calleA : calleB;
+            string b = string.CompareOrdinal(calleA, calleB) <= 0 ? calleB : calleA;
+            int rx = (int)Math.Round(p.X / 0.5);
+            int ry = (int)Math.Round(p.Y / 0.5);
+            return $"{a}|{b}|{rx}|{ry}";
         }
 
         /// <summary>
