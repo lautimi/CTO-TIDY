@@ -95,6 +95,49 @@ Ambos almacenan un Handle hex que resuelve a una `Curve`. El ángulo es
 El paso 5 (`CTO_DESPLEGAR`) borra primero todos los `BlockReference` en la
 capa CTO. Correr el paso N veces produce el mismo output que correrlo una vez.
 
+## Cálculo de LARGO_FRENTE — V4 (desde 2026-04-22)
+
+### Pipeline V4
+
+1. Lee `CALLE_1` de Object Data (Map 3D), tabla `SEGMENTO`, via `Map/ObjectDataReader.cs`.
+2. Construye `StreetCornerLibrary`: indexa endpoints de segmentos por nombre de calle y detecta esquinas en dos fases:
+   - **Fase 1 (endpoint matching)**: endpoints de calles distintas a <= `STREET_CORNER_TOLERANCE = 0.5m`.
+   - **Fase 2 (intersección geométrica)**: líneas extendidas de pares de segmentos con `CALLE_1` distinto, si ambos endpoints quedan a <= `MAX_INTERSECTION_DIST = 15m` del punto de intersección. Filtra paralelas con `|sin θ| < 0.05`. Deduplica por `{calleA_canon, calleB_canon, round(point/0.5m)}`.
+3. Para cada poste: localiza las dos esquinas que delimitan su segmento de calle, las proyecta sobre la polilínea de manzana, y mide el arco entre ellas que contiene la posición del poste.
+
+### Cadena de fallback
+
+`V4 → V3 (proyección directa de endpoints del segmento sobre manzana) → V2 (DetectCorners legacy) → NotFound`
+
+El formato de `ID_FRENTE` indica qué método se usó (ver `xdata-schema.md`).
+
+### Helper SafeGetDistAtPoint
+
+Tres estrategias en cascada para manejar errores de precisión flotante de `GetDistAtPoint`:
+1. Llamada directa.
+2. Re-proyección del punto sobre la curva.
+3. Recorrido manual paramétrico.
+
+### Cache + LoadingOverlay
+
+Al abrir `CTO_PANEL` se precomputa la `StreetCornerLibrary` con un overlay UI animado (`LoadingOverlay`, FuturisticTheme: gradient + 3 dots pulsantes + status text) y se cachea en `CtoCache` (singleton estático). `CTO_ASOCIAR_POSTES` consume el cache si está disponible, evitando rebuild en cada ejecución.
+
+### Capas de auditoría
+
+- `CTO_AUDIT_FRENTES_V4` (color 3, verde): postes resueltos por V4 (esquinas de calle reales).
+- `CTO_AUDIT_FRENTES_V3` (color 6, cian): postes resueltos por V3 (proyección directa) o V2 (DetectCorners).
+
+### Constantes V4 (en `Geometry/GeometryConstants.cs`)
+
+| Constante | Valor | Descripción |
+|---|---|---|
+| `STREET_CORNER_TOLERANCE` | 0.5 m | Distancia max entre endpoints para co-locación (fase 1) |
+| `STREET_CORNER_SEARCH_MAX` | 10 m | Distancia max para búsqueda de esquina cerca de endpoint del segmento del poste |
+| `CORNER_TO_MANZANA_MAX` | 2 m | Distancia max esquina-de-calle a polilínea de manzana |
+| `MAX_INTERSECTION_DIST` | 15 m | Distancia max entre intersección de líneas y endpoint de segmento (fase 2) |
+
+---
+
 ## Decisiones históricas
 
 - **LINGA → FRENTE → SEGMENTO** (agrupamiento). La primera iteración agrupaba

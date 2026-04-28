@@ -9,7 +9,8 @@ Términos del dominio CTO / FTTH que aparecen en la spec, código y comentarios.
 | **HP** | Hogares Pasados (Futuro 100%). Cantidad total de domicilios que la red pasa frente a un segmento de calle. Es el input principal de la tabla de cálculo. |
 | **Segmento** | Eje de calle (Polyline en el DWG). Unidad de agrupamiento del cálculo. Un segmento = 2 frentes de manzana + 1 bloque CONT_HP. |
 | **Manzana** | Polígono cerrado delimitado por 4 calles. Cada manzana tiene múltiples frentes (uno por lado). |
-| **Frente** | Lado de una manzana entre dos esquinas. Identificado por `"<manzanaHandle>#<frenteIdx>"`. Su largo (`LARGO_FRENTE`) es el valor que entra en la tabla CTO. |
+| **Frente** | Arco de la polilínea de manzana entre dos esquinas reales (V4). Una **esquina real** es la intersección entre dos calles con nombres distintos (leídos del OD campo `CALLE_1`). Su largo (`LARGO_FRENTE`) es el valor que entra en la tabla CTO. Identificado por `"<manzanaHandle>#<segmentHandle>"` (V4/V3) o `"<manzanaHandle>#<frenteIdx>"` (V2 legacy). |
+| **Esquina de calle** | Punto donde dos segmentos con `CALLE_1` distintos se intersectan (o sus líneas extendidas se intersectan dentro de `MAX_INTERSECTION_DIST = 15m`). Construida por `StreetCornerLibrary` en dos fases: endpoint matching (tolerancia 0.5m) + intersección geométrica de líneas extendidas. |
 | **Linga** | Cable físico (Line) que conecta un poste al segmento de calle. Tiene tipo `PRIORIDAD` o `SECUNDARIA`. |
 | **Poste** | Entidad seleccionada por el usuario (típicamente un `BlockReference` o un punto). Recibe las CTOs. En el código se abre como `Entity` genérica y se obtiene la posición con `Extensions.GetInsertionOrPosition`. |
 | **PRIORIDAD** | Tipo de linga que indica que el poste recibe CTOs en su frente. Un segmento puede tener 2 frentes PRIORIDAD (uno por lado) pero el HP es único. |
