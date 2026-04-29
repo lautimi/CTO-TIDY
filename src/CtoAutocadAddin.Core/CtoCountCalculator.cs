@@ -39,7 +39,7 @@ namespace Koovra.Cto.Core
 
         private static readonly Row[] Table =
         {
-            new Row(2,  0, 1, 0, 0),
+            new Row(2,  1, 0, 1, 0),
             new Row(5,  1, 0, 1, 0),
             new Row(8,  1, 0, 2, 0),
             new Row(16, 1, 1, 2, 0),
