@@ -59,9 +59,9 @@ namespace Koovra.Cto.AutocadAddin.Map
         }
 
         /// <summary>
-        /// Escribe un record CAJA_ACCESO para el BlockReference dado.
-        /// Si ya existe un record previo en esa entidad lo elimina primero (idempotencia).
-        /// Cualquier excepción se loguea y no se propaga.
+        /// Escribe (o sobreescribe) el OD CAJA_ACCESO en el bloque indicado.
+        /// Para cajas de crecimiento pasar hpEje=0.
+        /// Usa GetObjectTableRecords con OpenForWrite+create=true para obtener o crear el record.
         /// </summary>
         public static void WriteCajaAcceso(ObjectId blockRefId, int hpEje)
         {
@@ -80,32 +80,24 @@ namespace Koovra.Cto.AutocadAddin.Map
                 }
                 if (table == null) return;
 
-                // Eliminar record previo si existe (idempotencia)
-                try
-                {
-                    Records existing = table.GetObjectTableRecords(
-                        0, blockRefId, Autodesk.Gis.Map.Constants.OpenMode.OpenForWrite, false);
-                    if (existing != null)
-                    {
-                        var removeMethod = table.GetType().GetMethod("RemoveObjectTableRecord",
-                            new[] { typeof(ObjectId) });
-                        if (removeMethod != null)
-                            removeMethod.Invoke(table, new object[] { blockRefId });
-                    }
-                }
-                catch { }
+                // OpenForWrite + createIfNotExists=true → obtiene el record existente
+                // o crea uno nuevo si no hay ninguno para esta entidad.
+                Records records = table.GetObjectTableRecords(
+                    0, blockRefId, Autodesk.Gis.Map.Constants.OpenMode.OpenForWrite, true);
 
-                // Agregar nuevo record
-                Record record = AddRecord(table, blockRefId);
-                if (record == null)
+                if (records == null)
                 {
-                    AcadLogger.Warn($"ObjectDataWriter.WriteCajaAcceso: no se pudo crear record para {blockRefId}.");
+                    AcadLogger.Warn($"ObjectDataWriter.WriteCajaAcceso: no se pudo obtener/crear record para {blockRefId}.");
                     return;
                 }
 
-                SetCellString(record, 0, string.Empty);   // ACRÓNIMO
-                SetCellInt(record, 1, hpEje);              // HP_EJE
-                SetCellString(record, 2, string.Empty);    // ID_SEGMENTO
+                foreach (Record record in records)
+                {
+                    SetCell(record, 0, string.Empty);  // ACRÓNIMO
+                    SetCell(record, 1, hpEje);          // HP_EJE
+                    SetCell(record, 2, string.Empty);   // ID_SEGMENTO
+                    break; // Solo necesitamos el primer record
+                }
             }
             catch (Exception ex)
             {
@@ -119,13 +111,10 @@ namespace Koovra.Cto.AutocadAddin.Map
         {
             try
             {
-                // Instanciar FieldDefinitions vía constructor sin parámetros
                 FieldDefinitions defs = (FieldDefinitions)Activator.CreateInstance(typeof(FieldDefinitions));
-
                 AddFieldDef(defs, FIELD_ACRONIMO,    "character");
                 AddFieldDef(defs, FIELD_HP_EJE,      "integer");
                 AddFieldDef(defs, FIELD_ID_SEGMENTO, "character");
-
                 return defs;
             }
             catch (Exception ex)
@@ -137,7 +126,6 @@ namespace Koovra.Cto.AutocadAddin.Map
 
         private static void AddFieldDef(FieldDefinitions defs, string name, string dataTypeName)
         {
-            // Buscar enum DataType por nombre (varía entre versiones de Map)
             Type dataTypeEnum = null;
             foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
             {
@@ -148,33 +136,21 @@ namespace Koovra.Cto.AutocadAddin.Map
             object dataTypeValue = null;
             if (dataTypeEnum != null)
             {
-                foreach (var enumName in new[] { dataTypeName, dataTypeName.ToUpper() })
-                {
-                    try
-                    {
-                        dataTypeValue = Enum.Parse(dataTypeEnum, enumName, ignoreCase: true);
-                        break;
-                    }
-                    catch { }
-                }
+                try { dataTypeValue = Enum.Parse(dataTypeEnum, dataTypeName, ignoreCase: true); }
+                catch { }
             }
-
             if (dataTypeValue == null)
             {
-                // Fallback: integer = 2, character = 3 (valores típicos en Map API)
-                if (dataTypeName == "integer")       dataTypeValue = 2;
+                if (dataTypeName == "integer")        dataTypeValue = 2;
                 else if (dataTypeName == "character") dataTypeValue = 3;
                 else                                  dataTypeValue = 3;
             }
 
-            // FieldDefinition(string name, DataType type, string defaultValue)
-            // o FieldDefinition(string name, DataType type)
             object fieldDef = null;
             try
             {
                 fieldDef = Activator.CreateInstance(
-                    typeof(FieldDefinition),
-                    new object[] { name, dataTypeValue, string.Empty });
+                    typeof(FieldDefinition), new object[] { name, dataTypeValue, string.Empty });
             }
             catch { }
 
@@ -183,8 +159,7 @@ namespace Koovra.Cto.AutocadAddin.Map
                 try
                 {
                     fieldDef = Activator.CreateInstance(
-                        typeof(FieldDefinition),
-                        new object[] { name, dataTypeValue });
+                        typeof(FieldDefinition), new object[] { name, dataTypeValue });
                 }
                 catch { }
             }
@@ -195,90 +170,54 @@ namespace Koovra.Cto.AutocadAddin.Map
             addMethod?.Invoke(defs, new[] { fieldDef });
         }
 
-        private static Record AddRecord(OdTable table, ObjectId entityId)
-        {
-            // Intentar table.AddObjectTableRecord(ObjectId)
-            var addRec = table.GetType().GetMethod("AddObjectTableRecord", new[] { typeof(ObjectId) });
-            if (addRec != null)
-                return addRec.Invoke(table, new object[] { entityId }) as Record;
-
-            // Fallback: table.GetObjectTableRecords con OpenForWrite crea si no existe
-            try
-            {
-                Records recs = table.GetObjectTableRecords(
-                    0, entityId, Autodesk.Gis.Map.Constants.OpenMode.OpenForWrite, true);
-                if (recs != null)
-                    foreach (Record r in recs) return r;
-            }
-            catch { }
-
-            return null;
-        }
-
-        private static void SetCellString(Record record, int fieldIdx, string value)
-        {
-            SetCell(record, fieldIdx, value);
-        }
-
-        private static void SetCellInt(Record record, int fieldIdx, int value)
-        {
-            SetCell(record, fieldIdx, value);
-        }
-
+        /// <summary>
+        /// Escribe un valor en la celda fieldIdx del record via reflexión pura.
+        /// La celda es un MapValue — se busca el setter adecuado según el tipo del valor.
+        /// </summary>
         private static void SetCell(Record record, int fieldIdx, object value)
         {
-            // Intento 1: indexer Item[int] = value
             try
             {
+                // Obtener la celda (MapValue) via indexer Item[int]
                 var indexer = record.GetType().GetProperty("Item", new[] { typeof(int) });
-                if (indexer != null && indexer.CanWrite)
+                if (indexer == null) return;
+
+                object cell = indexer.GetValue(record, new object[] { fieldIdx });
+                if (cell == null) return;
+
+                // Intentar asignar mediante Assign(MapValue) construyendo MapValue via reflexión
+                Type cellType = cell.GetType();
+                object newMapVal = null;
+                try { newMapVal = Activator.CreateInstance(cellType, new[] { value }); } catch { }
+
+                if (newMapVal != null)
                 {
-                    indexer.SetValue(record, value, new object[] { fieldIdx });
-                    return;
-                }
-            }
-            catch { }
-
-            // Intento 2: SetCellAtIndex(int, object)
-            try
-            {
-                var mi = record.GetType().GetMethod("SetCellAtIndex",
-                    new[] { typeof(int), typeof(object) });
-                if (mi != null) { mi.Invoke(record, new[] { (object)fieldIdx, value }); return; }
-            }
-            catch { }
-
-            // Intento 3: SetValue(int, object)
-            try
-            {
-                var mi = record.GetType().GetMethod("SetValue",
-                    new[] { typeof(int), typeof(object) });
-                if (mi != null) { mi.Invoke(record, new[] { (object)fieldIdx, value }); return; }
-            }
-            catch { }
-
-            // Intento 4: construir MapValue y asignar
-            try
-            {
-                object mapVal = null;
-                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-                {
-                    var t = asm.GetType("Autodesk.Gis.Map.ObjectData.MapValue");
-                    if (t == null) t = asm.GetType("Autodesk.Gis.Map.Constants.MapValue");
-                    if (t != null)
+                    var assignMi = cellType.GetMethod("Assign", new[] { cellType });
+                    if (assignMi != null)
                     {
-                        try { mapVal = Activator.CreateInstance(t, new[] { value }); break; }
-                        catch { }
+                        assignMi.Invoke(cell, new[] { newMapVal });
+                        return;
                     }
                 }
-                if (mapVal != null)
+
+                // Fallback: setters de propiedad directos en MapValue
+                if (value is string s)
                 {
-                    var indexer2 = record.GetType().GetProperty("Item", new[] { typeof(int) });
-                    if (indexer2 != null && indexer2.CanWrite)
-                        indexer2.SetValue(record, mapVal, new object[] { fieldIdx });
+                    var p = cellType.GetProperty("StrValue") ?? cellType.GetProperty("StringValue");
+                    if (p != null && p.CanWrite) { p.SetValue(cell, s); return; }
+                }
+                if (value is int i)
+                {
+                    var p = cellType.GetProperty("Int32Value")
+                         ?? cellType.GetProperty("IntegerValue")
+                         ?? cellType.GetProperty("LongValue");
+                    if (p != null && p.CanWrite) { p.SetValue(cell, i); return; }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AcadLogger.Warn($"ObjectDataWriter.SetCell[{fieldIdx}]: {ex.Message}");
+            }
         }
     }
 }
