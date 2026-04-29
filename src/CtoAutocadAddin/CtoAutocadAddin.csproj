@@ -108,6 +108,7 @@
     <Compile Include="UI\LoadingOverlay.cs" />
     <Compile Include="UI\SettingsDialog.cs" />
     <Compile Include="Map\ObjectDataReader.cs" />
+    <Compile Include="Map\ObjectDataWriter.cs" />
     <Compile Include="AddinApplication.cs" />
   </ItemGroup>
   <ItemGroup>
