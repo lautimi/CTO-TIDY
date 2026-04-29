@@ -1,9 +1,9 @@
 using System;
+using System.Collections.Generic;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Koovra.Cto.AutocadAddin.Geometry;
 using Koovra.Cto.AutocadAddin.Infrastructure;
-using Koovra.Cto.AutocadAddin.Map;
 using Koovra.Cto.AutocadAddin.Models;
 using Koovra.Cto.AutocadAddin.Persistence;
 
@@ -56,7 +56,9 @@ namespace Koovra.Cto.AutocadAddin.Services
             return purged;
         }
 
-        public int DeployForPole(Transaction tr, Database db, ObjectId poleId, int[] hpPorDespliegue = null)
+        public int DeployForPole(Transaction tr, Database db, ObjectId poleId,
+            int[] hpPorDespliegue = null,
+            System.Collections.Generic.List<System.Tuple<ObjectId, int>> odQueue = null)
         {
             int cDesp = XDataManager.GetInt(tr, poleId, XDataKeys.C_DESP) ?? 0;
             int cCrec = XDataManager.GetInt(tr, poleId, XDataKeys.C_CREC) ?? 0;
@@ -96,7 +98,8 @@ namespace Koovra.Cto.AutocadAddin.Services
                         int hp = (hpPorDespliegue != null && dIdx < hpPorDespliegue.Length)
                             ? hpPorDespliegue[dIdx]
                             : 0;
-                        ObjectDataWriter.WriteCajaAcceso(newId, hp);
+                        if (!newId.IsNull && odQueue != null)
+                            odQueue.Add(System.Tuple.Create(newId, hp));
                         dIdx++;
                     }
                     inserted++;
@@ -105,8 +108,8 @@ namespace Koovra.Cto.AutocadAddin.Services
                 if (c > 0)
                 {
                     ObjectId newId = InsertBlock(tr, ms, defIdCrec, polePoint, angles.displayAngle, angles.offsetAngle, slot++);
-                    if (!newId.IsNull)
-                        ObjectDataWriter.WriteCajaAcceso(newId, 0);
+                    if (!newId.IsNull && odQueue != null)
+                        odQueue.Add(System.Tuple.Create(newId, 0));
                     inserted++;
                     c--;
                 }

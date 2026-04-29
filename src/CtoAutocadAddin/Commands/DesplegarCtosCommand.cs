@@ -34,6 +34,8 @@ namespace Koovra.Cto.AutocadAddin.Commands
             Editor ed = doc.Editor;
             int total = 0;
 
+            var odQueue = new System.Collections.Generic.List<System.Tuple<ObjectId, int>>();
+
             using (doc.LockDocument())
             using (Transaction tr = db.TransactionManager.StartTransaction())
             {
@@ -47,7 +49,7 @@ namespace Koovra.Cto.AutocadAddin.Commands
                     int hpEje = XDataManager.GetInt(tr, poleId, XDataKeys.HP) ?? 0;
                     int cDesp = XDataManager.GetInt(tr, poleId, XDataKeys.C_DESP) ?? 0;
                     int[] hpPorCaja = HpDistributor.Distribute(hpEje, cDesp);
-                    total += deployer.DeployForPole(tr, db, poleId, hpPorCaja);
+                    total += deployer.DeployForPole(tr, db, poleId, hpPorCaja, odQueue);
                 }
 
                 // ── Purgar círculos de alerta anteriores (idempotencia) ────────
@@ -106,6 +108,18 @@ namespace Koovra.Cto.AutocadAddin.Commands
                 }
 
                 tr.Commit();
+            }
+
+            // ── Segunda pasada: escribir OD en entidades ya commiteadas ──────────
+            if (odQueue.Count > 0)
+            {
+                using (Transaction trOd = db.TransactionManager.StartTransaction())
+                {
+                    foreach (var entry in odQueue)
+                        ObjectDataWriter.WriteCajaAcceso(entry.Item1, entry.Item2);
+                    trOd.Commit();
+                }
+                AcadLogger.Info($"OD CAJA_ACCESO escrito en {odQueue.Count} bloques.");
             }
 
             AcadLogger.Info($"{total} bloques CTO desplegados.");
