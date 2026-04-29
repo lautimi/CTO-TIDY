@@ -263,32 +263,55 @@ namespace Koovra.Cto.AutocadAddin.UI
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
             void AddRow(int h) => layout.RowStyles.Add(new RowStyle(SizeType.Absolute, h));
-            AddRow(48);  // header
-            AddRow(44);  // paso 1
-            AddRow(44);  // paso 2
-            AddRow(44);  // paso 3
-            AddRow(44);  // paso 4
-            AddRow(44);  // paso 5
-            AddRow(36);  // radio
-            AddRow(34);  // inspeccionar
-            AddRow(34);  // configuración
-            AddRow(42);  // run all
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // log
+            AddRow(48);  // header       row 0
+            AddRow(2);   // hairline      row 1
+            AddRow(44);  // paso 1        row 2
+            AddRow(44);  // paso 2        row 3
+            AddRow(44);  // paso 3        row 4
+            AddRow(44);  // paso 4        row 5
+            AddRow(44);  // paso 5        row 6
+            AddRow(36);  // radio         row 7
+            AddRow(34);  // inspeccionar  row 8
+            AddRow(34);  // configuración row 9
+            AddRow(42);  // run all       row 10
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // log row 11
 
             // ── Header compacto ──────────────────────────────────────────────
             var header = new FuturisticTheme.HeaderPanel(
                 this,
                 getGlowPhase: null,
                 getShimmerX:  null,
-                title:        "⚡  CTO — Workflow FTTH",
+                title:        "CTO — Workflow FTTH",
                 subtitle:     null,
-                tag:          null,
+                tag:          "[ VEZEEL · CTO ]",
                 showClose:    false)
             {
                 Dock   = DockStyle.Fill,
                 Height = 48,
             };
+
+            var logoImg = FuturisticTheme.LoadEmbeddedImage(
+                "Koovra.Cto.AutocadAddin.UI.Assets.vezeel-wordmark.png");
+            if (logoImg != null)
+            {
+                var logoPb = new PictureBox
+                {
+                    Image    = logoImg,
+                    SizeMode = PictureBoxSizeMode.Zoom,
+                    Height   = 22,
+                    Width    = 90,
+                    Location = new Point(12, 13),
+                    BackColor = Color.Transparent,
+                };
+                header.Controls.Add(logoPb);
+            }
+
             layout.Controls.Add(header, 0, 0);
+
+            // ── Hairline brand stripe ────────────────────────────────────────
+            var hairline = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            hairline.Paint += (s, e) => FuturisticTheme.PaintHairlineStripe(e.Graphics, hairline.Width);
+            layout.Controls.Add(hairline, 0, 1);
 
             // ── Pasos ────────────────────────────────────────────────────────
             _rowPostes      = new StepRow("1. Seleccionar postes");
@@ -303,11 +326,11 @@ namespace Koovra.Cto.AutocadAddin.UI
             _rowCalcular.Button.Click    += (s, e) => RunStep(_rowCalcular,    StepCalcular);
             _rowDesplegar.Button.Click   += (s, e) => RunStep(_rowDesplegar,   StepDesplegar);
 
-            layout.Controls.Add(_rowPostes,      0, 1);
-            layout.Controls.Add(_rowAsociar,     0, 2);
-            layout.Controls.Add(_rowComentarios, 0, 3);
-            layout.Controls.Add(_rowCalcular,    0, 4);
-            layout.Controls.Add(_rowDesplegar,   0, 5);
+            layout.Controls.Add(_rowPostes,      0, 2);
+            layout.Controls.Add(_rowAsociar,     0, 3);
+            layout.Controls.Add(_rowComentarios, 0, 4);
+            layout.Controls.Add(_rowCalcular,    0, 5);
+            layout.Controls.Add(_rowDesplegar,   0, 6);
 
             // ── Radio buffer ─────────────────────────────────────────────────
             var radioRow = new Panel
@@ -353,7 +376,7 @@ namespace Koovra.Cto.AutocadAddin.UI
 
             radioRow.Controls.Add(lblRadius);
             radioRow.Controls.Add(_nudRadius);
-            layout.Controls.Add(radioRow, 0, 6);
+            layout.Controls.Add(radioRow, 0, 7);
 
             // ── Inspeccionar ─────────────────────────────────────────────────
             var btnInspect = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Secondary)
@@ -368,7 +391,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 var doc = AcApp.DocumentManager.MdiActiveDocument;
                 doc?.SendStringToExecute("CTO_INSPECCIONAR ", true, false, false);
             };
-            layout.Controls.Add(btnInspect, 0, 7);
+            layout.Controls.Add(btnInspect, 0, 8);
 
             // ── Configuración ────────────────────────────────────────────────
             var btnConfig = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Secondary)
@@ -383,7 +406,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 var doc = AcApp.DocumentManager.MdiActiveDocument;
                 doc?.SendStringToExecute("CTO_CONFIG ", true, false, false);
             };
-            layout.Controls.Add(btnConfig, 0, 8);
+            layout.Controls.Add(btnConfig, 0, 9);
 
             // ── Ejecutar Todo ────────────────────────────────────────────────
             _btnRunAll = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Primary)
@@ -398,7 +421,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 Color.FromArgb(0x00, 0xC8, 0x96),
                 Color.FromArgb(0x00, 0xA8, 0x7D));
             _btnRunAll.Click += (s, e) => RunAll();
-            layout.Controls.Add(_btnRunAll, 0, 9);
+            layout.Controls.Add(_btnRunAll, 0, 10);
 
             // ── Log ──────────────────────────────────────────────────────────
             _log = new RichTextBox
@@ -411,7 +434,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 ScrollBars  = RichTextBoxScrollBars.Vertical,
                 BorderStyle = BorderStyle.None,
             };
-            layout.Controls.Add(_log, 0, 10);
+            layout.Controls.Add(_log, 0, 11);
 
             // ── Warnings panel (postes en esquina) ──────────────────────────
             _warningHeader = new Label
