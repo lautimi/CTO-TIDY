@@ -116,6 +116,14 @@
       <Name>CtoAutocadAddin.Core</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="UI\Assets\vezeel-wordmark.png">
+      <LogicalName>Koovra.Cto.AutocadAddin.UI.Assets.vezeel-wordmark.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UI\Assets\vezeel-mark.png">
+      <LogicalName>Koovra.Cto.AutocadAddin.UI.Assets.vezeel-mark.png</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EmbedCoreDll" AfterTargets="ResolveReferences">
     <ItemGroup>
