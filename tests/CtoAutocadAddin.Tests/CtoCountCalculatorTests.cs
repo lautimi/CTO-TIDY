@@ -9,8 +9,8 @@ namespace Koovra.Cto.Tests
         // Formato: (hp, largo, cDespEsperado, cCrecEsperado)
         // Ejes ≤ 160 m
         [InlineData(0,   100.0, 0, 0)]
-        [InlineData(1,   100.0, 0, 1)]
-        [InlineData(2,   100.0, 0, 1)]
+        [InlineData(1,   100.0, 1, 0)]
+        [InlineData(2,   100.0, 1, 0)]
         [InlineData(3,   100.0, 1, 0)]
         [InlineData(5,   100.0, 1, 0)]
         [InlineData(6,   100.0, 1, 0)]
@@ -34,8 +34,8 @@ namespace Koovra.Cto.Tests
         // Corte exacto en 160 m (≤ 160 cae en columna corta)
         [InlineData(20,  160.0, 1, 2)]
         // Ejes > 160 m
-        [InlineData(1,   200.0, 0, 0)]
-        [InlineData(2,   200.0, 0, 0)]
+        [InlineData(1,   200.0, 1, 0)]
+        [InlineData(2,   200.0, 1, 0)]
         [InlineData(3,   200.0, 1, 0)]
         [InlineData(5,   200.0, 1, 0)]
         [InlineData(6,   200.0, 2, 0)]

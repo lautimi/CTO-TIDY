@@ -8,7 +8,7 @@ Corte de Largo: `GeometryConstants.LARGO_CORTE = 160.0 m`.
 
 | HP (Futuro 100%) | ≤160m C_DESP | ≤160m C_CREC | >160m C_DESP | >160m C_CREC |
 |---|---|---|---|---|
-| 1–2   | 0 | 1 | 0 | 0 |
+| 1–2   | 1 | 0 | 1 | 0 |
 | 3–5   | 1 | 0 | 1 | 0 |
 | 6–8   | 1 | 0 | 2 | 0 |
 | 9–16  | 1 | 1 | 2 | 0 |
