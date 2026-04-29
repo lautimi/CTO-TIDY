@@ -3,6 +3,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Koovra.Cto.AutocadAddin.Geometry;
 using Koovra.Cto.AutocadAddin.Infrastructure;
+using Koovra.Cto.AutocadAddin.Map;
 using Koovra.Cto.AutocadAddin.Models;
 using Koovra.Cto.AutocadAddin.Persistence;
 
@@ -55,7 +56,7 @@ namespace Koovra.Cto.AutocadAddin.Services
             return purged;
         }
 
-        public int DeployForPole(Transaction tr, Database db, ObjectId poleId)
+        public int DeployForPole(Transaction tr, Database db, ObjectId poleId, int[] hpPorDespliegue = null)
         {
             int cDesp = XDataManager.GetInt(tr, poleId, XDataKeys.C_DESP) ?? 0;
             int cCrec = XDataManager.GetInt(tr, poleId, XDataKeys.C_CREC) ?? 0;
@@ -81,6 +82,7 @@ namespace Koovra.Cto.AutocadAddin.Services
             var ms = (BlockTableRecord)tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
             int inserted = 0;
             int slot = 0;
+            int dIdx = 0;
 
             // ── Intercalado D,C,D,C,...  (dentro del poste) ─────────────────
             int d = cDesp, c = cCrec;
@@ -88,13 +90,23 @@ namespace Koovra.Cto.AutocadAddin.Services
             {
                 if (d > 0)
                 {
-                    InsertBlock(tr, ms, defIdDesp, polePoint, angles.displayAngle, angles.offsetAngle, slot++);
+                    ObjectId newId = InsertBlock(tr, ms, defIdDesp, polePoint, angles.displayAngle, angles.offsetAngle, slot++);
+                    if (!newId.IsNull)
+                    {
+                        int hp = (hpPorDespliegue != null && dIdx < hpPorDespliegue.Length)
+                            ? hpPorDespliegue[dIdx]
+                            : 0;
+                        ObjectDataWriter.WriteCajaAcceso(newId, hp);
+                        dIdx++;
+                    }
                     inserted++;
                     d--;
                 }
                 if (c > 0)
                 {
-                    InsertBlock(tr, ms, defIdCrec, polePoint, angles.displayAngle, angles.offsetAngle, slot++);
+                    ObjectId newId = InsertBlock(tr, ms, defIdCrec, polePoint, angles.displayAngle, angles.offsetAngle, slot++);
+                    if (!newId.IsNull)
+                        ObjectDataWriter.WriteCajaAcceso(newId, 0);
                     inserted++;
                     c--;
                 }
@@ -105,7 +117,7 @@ namespace Koovra.Cto.AutocadAddin.Services
 
         // ── Helpers ──────────────────────────────────────────────────────────
 
-        private void InsertBlock(Transaction tr, BlockTableRecord ms,
+        private ObjectId InsertBlock(Transaction tr, BlockTableRecord ms,
                                  ObjectId defId, Point3d polePoint,
                                  double displayAngle, double offsetAngle, int slot)
         {
@@ -124,6 +136,7 @@ namespace Koovra.Cto.AutocadAddin.Services
                 br.Layer    = _layerName;
                 ms.AppendEntity(br);
                 tr.AddNewlyCreatedDBObject(br, true);
+                return br.ObjectId;
             }
         }
 

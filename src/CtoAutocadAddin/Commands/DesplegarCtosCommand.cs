@@ -8,7 +8,9 @@ using Koovra.Cto.AutocadAddin.Geometry;
 using Koovra.Cto.AutocadAddin.Infrastructure;
 using Koovra.Cto.AutocadAddin.Models;
 using Koovra.Cto.AutocadAddin.Persistence;
+using Koovra.Cto.AutocadAddin.Map;
 using Koovra.Cto.AutocadAddin.Services;
+using Koovra.Cto.Core;
 
 namespace Koovra.Cto.AutocadAddin.Commands
 {
@@ -35,11 +37,18 @@ namespace Koovra.Cto.AutocadAddin.Commands
             using (doc.LockDocument())
             using (Transaction tr = db.TransactionManager.StartTransaction())
             {
+                ObjectDataWriter.EnsureTable();
+
                 var deployer = new CtoBlockDeployer(s.BlockNameDesp, s.BlockNameCrec, s.CtoLayerName);
                 int purged = deployer.PurgeExistingBlocks(tr, db);
                 if (purged > 0) AcadLogger.Info($"Purga previa: {purged} bloques en capa '{s.CtoLayerName}' eliminados.");
                 foreach (ObjectId poleId in polesIds)
-                    total += deployer.DeployForPole(tr, db, poleId);
+                {
+                    int hpEje = XDataManager.GetInt(tr, poleId, XDataKeys.HP) ?? 0;
+                    int cDesp = XDataManager.GetInt(tr, poleId, XDataKeys.C_DESP) ?? 0;
+                    int[] hpPorCaja = HpDistributor.Distribute(hpEje, cDesp);
+                    total += deployer.DeployForPole(tr, db, poleId, hpPorCaja);
+                }
 
                 // ── Purgar círculos de alerta anteriores (idempotencia) ────────
                 var blkTbl2 = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
