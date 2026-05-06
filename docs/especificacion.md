@@ -112,6 +112,8 @@ Todas en `Geometry/GeometryConstants.cs`:
 | `CTO_OFFSET_Y` | 2.0 | Offset Y al insertar bloque CTO |
 | `CTO_SEPARACION` | — | Separación entre cajas del mismo poste |
 | `LARGO_CORTE` | 160.0 m | Corte entre ejes cortos/largos en la tabla CTO |
+| `CTO_CREC_OFFSET_ADICIONAL` | 3.54 m | Offset perpendicular adicional cuando 1D+1C se insertan en el mismo poste |
+| `CTO_ALERT_CIRCLE_RADIUS` | 10.0 m | Radio de los círculos de alerta en capa "0" para cajas overflow/midpoint |
 
 ---
 
@@ -145,7 +147,9 @@ Singleton `AddinSettings.Current` (`Models/AddinSettings.cs`). **No persisten en
 
 - `BlockNameDesp` — nombre del bloque para C_DESP (default: `CAJA_ACCESO_b`).
 - `BlockNameCrec` — nombre del bloque para C_CREC (default: `CAJA_CRECIMIENTO`).
-- `CtoLayerName`  — capa donde se insertan los bloques (default: `CTO`).
+- `CtoLayerName`  — capa legacy, no se usa en nuevos deploys.
+- `CtoLayerNameDesp` — capa para bloques D (default: `CAJA ACCESO b`).
+- `CtoLayerNameCrec` — capa para bloques C (default: `CAJA ACCESO b-PR`).
 
 ### Campos agregados (desde 2026-04-22)
 
@@ -167,6 +171,15 @@ Orden: `OrderBy(tieneObs ? 1 : 0).ThenBy(distMidpoint)`.
 **Nunca se descartan** — si faltan candidatos sin observaciones, los observados reciben caja igual.
 
 Implementado en `src/CtoAutocadAddin/Commands/CalcularCtosCommand.cs` (~línea 149).
+
+### Reglas de distribución (Paso 4)
+
+- Cap por poste: máximo **1D + 1C**. Items sobrantes → `ovfD`/`ovfC`.
+- `BuildInterleavedSequence` arranca por el tipo mayoritario: `1D+2C → [C,D,C]`, `2D+1C → [D,C,D]`.
+- Candidatos: grupo PRIORIDAD → SECUNDARIA → central, ordenados por distancia al midpoint del segmento.
+- Los postes seleccionados se reordenan por posición lineal sobre el eje antes de la asignación.
+- `polesToUse = min(candidates.Count, sequence.Count)`.
+- Radio de asociación de linga: **1m** (`PoleLingaAssociator(maxRadius = 1.0)`).
 
 ### Capas hardcoded (no expuestas en UI)
 

@@ -69,6 +69,49 @@
 └─────────────────────────┘
 ```
 
+## Reglas de distribución (Paso 4)
+
+- **Cap por poste**: máximo 1D + 1C por poste. Los items que superan el cap se acumulan como `ovfD`/`ovfC`.
+- **BuildInterleavedSequence**: arranca por el tipo mayoritario.
+  - `1D+2C → [C,D,C]`
+  - `2D+1C → [D,C,D]`
+  - `2D+3C → [C,D,C,D,C]`
+- **Candidatos**: grupos PRIORIDAD → SECUNDARIA → central, cada grupo ordenado por centralidad (distancia al midpoint del segmento).
+- **Postes seleccionados**: reordenados por **posición lineal** sobre el eje del segmento antes de la asignación D-C-D.
+- `polesToUse = min(candidates.Count, sequence.Count)`.
+- Overflow (`ovfD`, `ovfC`) se escribe en `C_DESP_OVF`/`C_CREC_OVF` al primer poste del segmento (`polesAll[0]`).
+- **Radio de linga**: `PoleLingaAssociator(maxRadius = 1.0)` — buffer de 1m alrededor del poste.
+
+## Overflow al midpoint (Paso 5)
+
+1. Paso 5 lee `C_DESP_OVF`/`C_CREC_OVF` del primer poste del segmento.
+2. Resuelve la curva del segmento → calcula el midpoint.
+3. Llama a `deployer.DeployAtPoint(midPt, ovfD, ovfC, hpSlice, odQueue, rotOvf)` con rotación del CONT_HP.
+4. Dibuja un círculo de alerta (r=10, capa "0") en el midpoint.
+5. El mismo flujo aplica a segmentos sin postes seleccionados: calcula `cDesp/cCrec` directamente con `CtoCountCalculator.Calculate(hp, largo)` e inserta al midpoint.
+
+## Capas separadas por tipo
+
+| Capa | Setting | Contenido |
+|---|---|---|
+| `CAJA ACCESO b`    | `CtoLayerNameDesp` | Bloques C_DESP (despliegue inicial). |
+| `CAJA ACCESO b-PR` | `CtoLayerNameCrec` | Bloques C_CREC (crecimiento futuro). |
+
+`CtoLayerName` legacy se conserva por compatibilidad pero no se usa en nuevos deploys.
+
+`PurgeExistingBlocks` borra de ambas capas. La operación es idempotente.
+
+## Círculos de alerta
+
+- Radio: `CTO_ALERT_CIRCLE_RADIUS = 10.0` m.
+- Capa: `"0"` (capa base de AutoCAD).
+- Se insertan en el midpoint del segmento cuando hay overflow o cuando no hay postes seleccionados.
+- `PurgeAlertCircles(tr, db)` los elimina antes de cada deploy (idempotente).
+
+## Deuda técnica: duplicación CtoPanel vs DesplegarCtosCommand
+
+`CtoPanel.StepDesplegar` (UI/CtoPanel.cs líneas ~782+) y `DesplegarCtosCommand.Execute` tienen lógica de deploy duplicada. Ambos archivos contienen los features de overflow, midpoint, círculos y capas separadas. **Cualquier cambio futuro al deploy debe sincronizar AMBOS archivos.**
+
 ## Unidad de agrupamiento: **SEGMENTO**
 
 Un segmento (eje de calle) = **2 frentes de manzana + 1 bloque CONT_HP**.

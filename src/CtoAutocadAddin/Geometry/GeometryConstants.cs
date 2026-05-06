@@ -10,7 +10,8 @@ namespace Koovra.Cto.AutocadAddin.Geometry
         public const double CTO_OFFSET_X = 0.0;
         public const double CTO_OFFSET_Y = 3.4;   // offset perpendicular al eje (hacia vereda)
         public const double CTO_SEPARACION = 0.5; // apilado a lo largo de la linga
-        public const double CTO_ALERT_CIRCLE_RADIUS = 5.0;
+        public const double CTO_CREC_OFFSET_ADICIONAL = 3.54;
+        public const double CTO_ALERT_CIRCLE_RADIUS = 10.0;
         /// <summary>Tolerancia para considerar que dos endpoints de Lines tocan la misma esquina.</summary>
         public const double STREET_CORNER_TOLERANCE = 0.5;
         /// <summary>Distancia máxima permitida entre un endpoint de segmento y la esquina-de-calle más cercana.</summary>

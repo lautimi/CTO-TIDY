@@ -26,3 +26,6 @@ Términos del dominio CTO / FTTH que aparecen en la spec, código y comentarios.
 | **Handle hex** | Identificador hexadecimal persistente de una entidad (sobrevive save/load). Más estable que `ObjectId`. Usado para `ID_SEGMENT`, `ID_LINGA`. |
 | **NETLOAD** | Comando de AutoCAD para cargar un DLL managed en la sesión. |
 | **PaletteSet** | Ventana flotante/acoplable de AutoCAD. El `CTO_PANEL` usa una PaletteSet para exponer los comandos. |
+| **Overflow (OVF)** | Cajas D o C de un segmento que no pudieron asignarse a ningún poste por el cap 1D+1C. Se almacenan en `C_DESP_OVF`/`C_CREC_OVF` al primer poste del segmento y se despliegan al midpoint en el paso 5. |
+| **Midpoint deploy** | Inserción de cajas overflow (o de segmentos sin postes seleccionados) en el punto medio de la curva del segmento, con la rotación del bloque CONT_HP. Acompañado de un círculo de alerta. |
+| **Círculo de alerta** | Círculo dibujado en la capa "0" con radio `CTO_ALERT_CIRCLE_RADIUS = 10m` en el midpoint del segmento, indicando que las cajas fueron insertadas fuera de un poste real. Es idempotente (se purga antes de cada deploy). |

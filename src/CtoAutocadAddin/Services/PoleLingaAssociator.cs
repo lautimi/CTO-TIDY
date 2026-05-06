@@ -33,7 +33,7 @@ namespace Koovra.Cto.AutocadAddin.Services
 
         private readonly double _maxRadius;
 
-        public PoleLingaAssociator(double maxRadius = 15.0)
+        public PoleLingaAssociator(double maxRadius = 1.0)
         {
             _maxRadius = maxRadius;
         }

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
@@ -56,16 +55,13 @@ namespace Koovra.Cto.AutocadAddin.Commands
     /// frente), la distribución se corría dos veces con el mismo HP → cajas duplicadas.
     ///
     /// Para cada SEGMENTO:
-    ///   1. Separar postes del segmento en PRIORIDAD vs resto (SEC/sin linga).
-    ///   2. Postes no-PRIORIDAD → C_DESP=0, C_CREC=0 (no reciben cajas).
-    ///   3. Si no hay PRIORIDAD, el segmento completo va en 0,0.
-    ///   4. HP se toma del segmento (cualquier poste PRIORIDAD lo tiene).
-    ///   5. LARGO_FRENTE se toma por voto mayoritario de los postes PRIORIDAD (warning si hay
-    ///      inconsistencia).
-    ///   6. Calcular C_DESP, C_CREC con la tabla oficial (HP × LARGO_FRENTE).
-    ///   7. Ordenar postes PRIORIDAD por cercanía al midpoint del SEGMENTO (centrales primero).
-    ///   8. Generar secuencia D,C,D,C,... y distribuir round-robin.
-    ///   9. Escribir C_DESP/C_CREC en XData.
+    ///   1. Separar postes del segmento en PRIORIDAD vs SECUNDARIA vs central.
+    ///   2. HP se toma del primer poste PRIORIDAD (o del primero del segmento si no hay PRI).
+    ///   3. LARGO_FRENTE se toma por voto mayoritario de los postes PRIORIDAD (o todos si no hay PRI).
+    ///   4. Calcular C_DESP, C_CREC con la tabla oficial (HP × LARGO_FRENTE).
+    ///   5. Ordenar postes: PRIORIDAD → SECUNDARIA → central, cada grupo por posición lineal.
+    ///   6. Generar secuencia D,C,D,C,... y distribuir round-robin.
+    ///   7. Escribir C_DESP/C_CREC en XData para TODOS los postes del segmento.
     /// </summary>
     internal static class CtoDistributor
     {
@@ -106,33 +102,35 @@ namespace Koovra.Cto.AutocadAddin.Commands
                 string segId    = kv.Key;
                 var    polesAll = kv.Value;
 
-                // Separar por tipo de linga: sólo PRIORIDAD recibe cajas.
-                var priPoles   = new List<ObjectId>();
-                var otherPoles = new List<ObjectId>();
+                // ── Separar postes por tipo de linga ─────────────────────────────
+                var priPoles     = new List<ObjectId>();
+                var secPoles     = new List<ObjectId>();
+                var centralPoles = new List<ObjectId>();
                 foreach (var pid in polesAll)
                 {
                     string tipo = XDataManager.GetString(tr, pid, XDataKeys.LINGA_TIPO) ?? string.Empty;
-                    if (tipo == XDataKeys.LINGA_PRIORIDAD) priPoles.Add(pid);
-                    else                                   otherPoles.Add(pid);
+                    if (string.Equals(tipo, XDataKeys.LINGA_PRIORIDAD, StringComparison.OrdinalIgnoreCase))
+                        priPoles.Add(pid);
+                    else if (string.Equals(tipo, XDataKeys.LINGA_SECUNDARIA, StringComparison.OrdinalIgnoreCase))
+                        secPoles.Add(pid);
+                    else
+                        centralPoles.Add(pid);
                 }
 
-                // Postes no-PRIORIDAD → 0,0 siempre.
-                foreach (var pid in otherPoles) WriteZero(tr, pid);
+                // HP del segmento: tomar del primer poste PRIORIDAD, o del primer poste del segmento.
+                var hpSource = priPoles.Count > 0 ? priPoles[0] : polesAll[0];
+                int hp = XDataManager.GetInt(tr, hpSource, XDataKeys.HP) ?? 0;
 
-                if (priPoles.Count == 0) continue;  // Segmento sin PRIORIDAD: nada para desplegar.
-
-                // HP del segmento (cualquier priPole lo tiene — es del eje de calle).
-                int hp = XDataManager.GetInt(tr, priPoles[0], XDataKeys.HP) ?? 0;
-
-                // LARGO_FRENTE por voto mayoritario (uniformidad esperada en priPoles).
-                double largo = PickLargoFrenteByMajority(tr, priPoles, segId, logInfo);
+                // LARGO_FRENTE por voto mayoritario entre postes PRIORIDAD (o todos si no hay PRI).
+                var largoSource = priPoles.Count > 0 ? priPoles : polesAll;
+                double largo = PickLargoFrenteByMajority(tr, largoSource, segId, logInfo);
 
                 if (largo <= 0.0)
                 {
-                    foreach (var pid in priPoles) WriteZero(tr, pid);
+                    foreach (var pid in polesAll) WriteZero(tr, pid);
                     logInfo?.Invoke(
                         $"  ⚠ Segmento {ShortHandle(segId)} sin LARGO_FRENTE resuelto — " +
-                        $"{priPoles.Count} postes PRIORIDAD forzados a 0,0");
+                        $"{polesAll.Count} postes forzados a 0,0");
                     continue;
                 }
 
@@ -142,86 +140,124 @@ namespace Koovra.Cto.AutocadAddin.Commands
 
                 if (cDesp + cCrec == 0)
                 {
-                    foreach (var pid in priPoles) WriteZero(tr, pid);
+                    foreach (var pid in polesAll) WriteZero(tr, pid);
                     continue;
                 }
 
-                // Ranking por midpoint del SEGMENTO (centrales primero) + sub-criterio binario ObservationCodes.
-                Point3d? mid = GetCurveMidpoint(tr, db, segId);
-                var obsCodes = AddinSettings.Current.ObservationCodes;
-
-                var sortedPoles = priPoles
-                    .Select(pid =>
+                // ── Geometría del segmento: dirección lineal y midpoint ───────────
+                Curve segCurve = null;
+                if (!string.IsNullOrEmpty(segId))
+                {
+                    if (long.TryParse(segId, NumberStyles.HexNumber,
+                            CultureInfo.InvariantCulture, out long hv))
                     {
-                        double dist = mid.HasValue
-                            ? Extensions.GetInsertionOrPosition(
-                                  (Entity)tr.GetObject(pid, OpenMode.ForRead))
-                                .DistanceTo(mid.Value)
-                            : 0.0;
-                        bool tieneObs = false;
-                        if (obsCodes != null && obsCodes.Count > 0)
-                        {
-                            string csv = XDataManager.GetString(tr, pid, XDataKeys.COMENTARIOS) ?? string.Empty;
-                            if (!string.IsNullOrEmpty(csv))
-                            {
-                                string[] tokens = csv.Split(',');
-                                foreach (string token in tokens)
-                                {
-                                    string t = token.Trim();
-                                    foreach (string code in obsCodes)
-                                    {
-                                        if (string.Equals(t, code.Trim(), System.StringComparison.OrdinalIgnoreCase))
-                                        {
-                                            tieneObs = true;
-                                            break;
-                                        }
-                                    }
-                                    if (tieneObs) break;
-                                }
-                            }
-                        }
-                        return new { Id = pid, Dist = dist, TieneObs = tieneObs };
-                    })
-                    .OrderBy(x => x.TieneObs ? 1 : 0)
-                    .ThenBy(x => x.Dist)
-                    .Select(x => x.Id)
-                    .ToList();
+                        if (db.TryGetObjectId(new Handle(hv), out ObjectId cid))
+                            segCurve = tr.GetObject(cid, OpenMode.ForRead) as Curve;
+                    }
+                }
+                Vector3d segDir    = Vector3d.XAxis;
+                Point3d  segOrigin = Point3d.Origin;
+                Point3d  segMid    = Point3d.Origin;
+                if (segCurve != null)
+                {
+                    Vector3d rawDir = segCurve.EndPoint - segCurve.StartPoint;
+                    if (rawDir.Length > 0.001) { segDir = rawDir.GetNormal(); }
+                    segOrigin = segCurve.StartPoint;
+                    segMid    = segCurve.StartPoint + rawDir * 0.5;
+                }
+                else
+                {
+                    // Sin curva: usar centroide de los postes como midpoint
+                    double sx = 0, sy = 0, sz = 0;
+                    foreach (var pid in polesAll)
+                    {
+                        var ent2 = tr.GetObject(pid, OpenMode.ForRead) as Entity;
+                        Point3d p = Extensions.GetInsertionOrPosition(ent2);
+                        sx += p.X; sy += p.Y; sz += p.Z;
+                    }
+                    int n = polesAll.Count;
+                    segMid = new Point3d(sx / n, sy / n, sz / n);
+                }
 
-                var sequence = BuildInterleavedSequence(cDesp, cCrec);
+                var obsCodes = AddinSettings.Current.ObservationCodes ?? new List<string>();
 
-                int polesToUse = Math.Min(sortedPoles.Count, sequence.Count);
+                // ── Paso 1: ordenar cada grupo por centralidad (más cercanos al mid primero) ──
+                var priCentral     = SortByCentrality(priPoles,     tr, segMid, obsCodes);
+                var secCentral     = SortByCentrality(secPoles,     tr, segMid, obsCodes);
+                var centralCentral = SortByCentrality(centralPoles, tr, segMid, obsCodes);
+
+                // ── Paso 2: concatenar respetando prioridad y tomar los N más centrales ──
+                var candidates = new List<ObjectId>();
+                candidates.AddRange(priCentral);
+                candidates.AddRange(secCentral);
+                candidates.AddRange(centralCentral);
+
+                // Secuencia interleaved D,C,D,C,...
+                var sequence   = BuildInterleavedSequence(cDesp, cCrec);
+                // Usamos tantos postes como items en la secuencia (spread máximo),
+                // pero nunca más que los candidatos disponibles.
+                int polesToUse = Math.Min(candidates.Count, sequence.Count);
+                var selected   = candidates.GetRange(0, polesToUse);
+
+                // ── Paso 3: reordenar los seleccionados por posición lineal → D-C-D visual ──
+                var sortedPoles = SortByLinearPosition(selected, tr, segDir, segOrigin, new List<string>());
+
+                // ── Diagnóstico: loguear postes seleccionados cuando hay priPoles ──
+                if (priPoles.Count > 0)
+                {
+                    foreach (var pid in sortedPoles)
+                    {
+                        string tipo2   = XDataManager.GetString(tr, pid, XDataKeys.LINGA_TIPO) ?? "(sin linga)";
+                        string segPole = XDataManager.GetString(tr, pid, XDataKeys.ID_SEGMENT) ?? "?";
+                        var ent3 = tr.GetObject(pid, OpenMode.ForRead) as Entity;
+                        Point3d pos3 = Extensions.GetInsertionOrPosition(ent3);
+                        logInfo?.Invoke($"    SELECCIONADO pid={pid.Handle} tipo='{tipo2}' seg='{ShortHandle(segPole)}' pos=({pos3.X:F0},{pos3.Y:F0})");
+                    }
+                }
+
+                // ── Paso 4: round-robin D,C,D,C,... con cap 1D+1C por poste ─────
+                // Si el round-robin intenta agregar un 2do D o 2do C al mismo poste,
+                // el item queda como overflow. Paso 5 lo lee de C_DESP_OVF / C_CREC_OVF
+                // y lo despliega en el midpoint del segmento.
                 var assign = new Dictionary<ObjectId, (int d, int c)>();
+                int ovfD = 0, ovfC = 0;
                 for (int i = 0; i < sequence.Count; i++)
                 {
                     ObjectId pole = sortedPoles[i % polesToUse];
                     assign.TryGetValue(pole, out var cur);
-                    assign[pole] = sequence[i]
-                        ? (cur.d + 1, cur.c)
-                        : (cur.d,     cur.c + 1);
+                    bool isD = sequence[i];
+                    if (isD  && cur.d == 0) assign[pole] = (1, cur.c);
+                    else if (!isD && cur.c == 0) assign[pole] = (cur.d, 1);
+                    else if (isD) ovfD++;
+                    else          ovfC++;
                 }
 
-                foreach (var pid in priPoles)
+                // ── Escribir resultados a TODOS los postes del segmento ───────────
+                foreach (ObjectId pid in polesAll)
                 {
-                    if (assign.TryGetValue(pid, out var pc))
+                    assign.TryGetValue(pid, out var val);
+                    XDataManager.SetValues(tr, pid, new (string, object)[]
                     {
-                        XDataManager.SetValues(tr, pid, new (string, object)[]
-                        {
-                            (XDataKeys.C_DESP, (object)pc.d),
-                            (XDataKeys.C_CREC, (object)pc.c),
-                        });
-                    }
-                    else
-                    {
-                        WriteZero(tr, pid);
-                    }
+                        (XDataKeys.C_DESP, (object)val.d),
+                        (XDataKeys.C_CREC, (object)val.c),
+                    });
                 }
+
+                // ── Escribir overflow en el primer poste del segmento (Paso 5 lo lee) ──
+                XDataManager.SetValues(tr, polesAll[0], new (string, object)[]
+                {
+                    (XDataKeys.C_DESP_OVF, (object)ovfD),
+                    (XDataKeys.C_CREC_OVF, (object)ovfC),
+                });
+                if (ovfD + ovfC > 0)
+                    logInfo?.Invoke($"  Segmento {ShortHandle(segId)}: overflow {ovfD}D+{ovfC}C → se colocarán en midpoint en Paso 5.");
 
                 stats.Segmentos++;
                 stats.TotalCtos += cDesp + cCrec;
 
                 logInfo?.Invoke(
                     $"  Segmento {ShortHandle(segId)} HP={hp} L={largo:F0}m → " +
-                    $"D={cDesp} C={cCrec} (postes PRI={priPoles.Count}, usados={polesToUse})");
+                    $"D={cDesp} C={cCrec} (PRI={priPoles.Count} SEC={secPoles.Count} CTR={centralPoles.Count} usados={polesToUse})");
             }
         }
 
@@ -276,30 +312,133 @@ namespace Koovra.Cto.AutocadAddin.Commands
         }
 
         /// <summary>
-        /// D,C,D,C,... (D=3,C=1 → D,C,D,D). true=DESP, false=CREC.
+        /// Intercala D y C empezando por la mayoría para maximizar la distribución visual.
+        /// Ejemplos: D=1,C=2 → C,D,C  |  D=2,C=1 → D,C,D  |  D=2,C=3 → C,D,C,D,C
+        /// true=DESP, false=CREC.
         /// </summary>
         private static List<bool> BuildInterleavedSequence(int cDesp, int cCrec)
         {
             var seq = new List<bool>(cDesp + cCrec);
             int d = cDesp, c = cCrec;
+            // Empieza por la mayoría (o D si iguales)
+            bool turnD = (d >= c);
             while (d > 0 || c > 0)
             {
-                if (d > 0) { seq.Add(true);  d--; }
-                if (c > 0) { seq.Add(false); c--; }
+                if (turnD && d > 0)
+                {
+                    seq.Add(true);  d--; turnD = false;
+                }
+                else if (!turnD && c > 0)
+                {
+                    seq.Add(false); c--; turnD = true;
+                }
+                else if (d > 0) { seq.Add(true);  d--; }
+                else            { seq.Add(false); c--; }
             }
             return seq;
         }
 
-        private static Point3d? GetCurveMidpoint(Transaction tr, Database db, string handleHex)
+        /// <summary>
+        /// Ordena postes de menor a mayor distancia al punto de referencia (midpoint del segmento).
+        /// ObsCodes: postes con observación van al final (obsRank=1).
+        /// </summary>
+        private static List<ObjectId> SortByCentrality(
+            List<ObjectId> poles,
+            Transaction tr,
+            Point3d midpoint,
+            List<string> obsCodes)
         {
-            if (string.IsNullOrEmpty(handleHex)) return null;
-            if (!long.TryParse(handleHex, NumberStyles.HexNumber,
-                    CultureInfo.InvariantCulture, out long hv)) return null;
-            if (!db.TryGetObjectId(new Handle(hv), out ObjectId id)) return null;
+            if (poles == null || poles.Count == 0) return new List<ObjectId>();
 
-            Curve c = tr.GetObject(id, OpenMode.ForRead) as Curve;
-            if (c == null) return null;
-            return c.StartPoint + (c.EndPoint - c.StartPoint) * 0.5;
+            var entries = new List<Tuple<ObjectId, double, int>>();
+            foreach (ObjectId pid in poles)
+            {
+                var ent = tr.GetObject(pid, OpenMode.ForRead) as Entity;
+                Point3d pos = Extensions.GetInsertionOrPosition(ent);
+                double dist = pos.DistanceTo(midpoint);
+
+                int obsRank = 0;
+                if (obsCodes != null && obsCodes.Count > 0)
+                {
+                    string csv = XDataManager.GetString(tr, pid, XDataKeys.COMENTARIOS) ?? string.Empty;
+                    if (!string.IsNullOrEmpty(csv))
+                    {
+                        foreach (string token in csv.Split(','))
+                        {
+                            string t = token.Trim();
+                            foreach (string code in obsCodes)
+                            {
+                                if (string.Equals(t, code.Trim(), StringComparison.OrdinalIgnoreCase))
+                                { obsRank = 1; break; }
+                            }
+                            if (obsRank == 1) break;
+                        }
+                    }
+                }
+                entries.Add(Tuple.Create(pid, dist, obsRank));
+            }
+
+            entries.Sort((a, b) => {
+                int c = a.Item3.CompareTo(b.Item3);
+                if (c != 0) return c;
+                return a.Item2.CompareTo(b.Item2);
+            });
+
+            var result = new List<ObjectId>(entries.Count);
+            foreach (var e in entries) result.Add(e.Item1);
+            return result;
+        }
+
+        /// <summary>
+        /// Proyecta cada poste sobre el eje del segmento y ordena de menor a mayor proyección.
+        /// ObsCodes: postes con observación van al final del grupo (obsRank=1).
+        /// </summary>
+        private static List<ObjectId> SortByLinearPosition(
+            List<ObjectId> poles,
+            Transaction tr,
+            Vector3d segDir,
+            Point3d segOrigin,
+            List<string> obsCodes)
+        {
+            if (poles == null || poles.Count == 0) return new List<ObjectId>();
+
+            var entries = new List<Tuple<ObjectId, double, int>>();
+            foreach (ObjectId pid in poles)
+            {
+                var ent = tr.GetObject(pid, OpenMode.ForRead) as Entity;
+                Point3d pos = Extensions.GetInsertionOrPosition(ent);
+                double proj = segDir.DotProduct(pos - segOrigin);
+
+                int obsRank = 0;
+                if (obsCodes != null && obsCodes.Count > 0)
+                {
+                    string csv = XDataManager.GetString(tr, pid, XDataKeys.COMENTARIOS) ?? string.Empty;
+                    if (!string.IsNullOrEmpty(csv))
+                    {
+                        foreach (string token in csv.Split(','))
+                        {
+                            string t = token.Trim();
+                            foreach (string code in obsCodes)
+                            {
+                                if (string.Equals(t, code.Trim(), StringComparison.OrdinalIgnoreCase))
+                                { obsRank = 1; break; }
+                            }
+                            if (obsRank == 1) break;
+                        }
+                    }
+                }
+                entries.Add(Tuple.Create(pid, proj, obsRank));
+            }
+
+            entries.Sort((a, b) => {
+                int c = a.Item3.CompareTo(b.Item3);
+                if (c != 0) return c;
+                return a.Item2.CompareTo(b.Item2);
+            });
+
+            var result = new List<ObjectId>(entries.Count);
+            foreach (var e in entries) result.Add(e.Item1);
+            return result;
         }
 
         private static string ShortHandle(string h) =>

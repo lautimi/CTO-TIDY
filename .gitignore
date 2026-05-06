@@ -25,3 +25,5 @@ _ReSharper.Caches/
 
 # Logs
 *.log
+acad.err
+*.err

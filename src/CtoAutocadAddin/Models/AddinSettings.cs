@@ -14,7 +14,12 @@ namespace Koovra.Cto.AutocadAddin.Models
         public string BlockNameCrec { get; set; } = "CAJA_CRECIMIENTO";
 
         // Capa donde se insertan los bloques CTO (se crea si no existe)
+        // Mantenida por compatibilidad — los nuevos deploys usan CtoLayerNameDesp/Crec.
         public string CtoLayerName { get; set; } = "CTO_DESPLIEGUE";
+
+        // Capas separadas por tipo de caja
+        public string CtoLayerNameDesp { get; set; } = "CAJA ACCESO b";
+        public string CtoLayerNameCrec { get; set; } = "CAJA ACCESO b-PR";
 
         public double TextBufferRadius { get; set; } = Geometry.GeometryConstants.TEXT_BUFFER_DEFAULT;
 
