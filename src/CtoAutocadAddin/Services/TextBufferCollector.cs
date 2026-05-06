@@ -55,6 +55,7 @@ namespace Koovra.Cto.AutocadAddin.Services
             public Point3d Position;
             public int     Hp;           // SDU + MDU
             public string  SegmentId;    // Handle hex del segmento asociado (puede ser null si no encontró)
+            public double  Rotation;     // Rotación del bloque CONT_HP en radianes (alineada al eje de calle)
         }
 
         public class Capture
@@ -130,6 +131,7 @@ namespace Koovra.Cto.AutocadAddin.Services
                     Position  = br.Position,
                     Hp        = sdu + mdu,
                     SegmentId = segId,
+                    Rotation  = br.Rotation,
                 });
             }
 

@@ -21,6 +21,8 @@ constantes en `Persistence/AppNames.cs` (clase `XDataKeys`).
 | `COMENTARIOS`  | string CSV          | 2 | Textos capturados del buffer del poste. |
 | `C_DESP`       | int16               | 4 | Cajas Despliegue Inicial 40% (resultado de la tabla). |
 | `C_CREC`       | int16               | 4 | Cajas Crecimiento Futuro 100% (resultado de la tabla). |
+| `C_DESP_OVF`   | int16               | 4 | Overflow de cajas D del segmento que no entraron por cap 1D+1C. Escrito al **primer poste** del segmento (`polesAll[0]`). |
+| `C_CREC_OVF`   | int16               | 4 | Overflow de cajas C del segmento que no entraron por cap 1D+1C. Escrito al **primer poste** del segmento (`polesAll[0]`). |
 
 ## Valores válidos de `LINGA_TIPO`
 

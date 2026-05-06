@@ -7,6 +7,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
+using Autodesk.AutoCAD.Geometry;
 using Koovra.Cto.AutocadAddin.Geometry;
 using Koovra.Cto.AutocadAddin.Infrastructure;
 using Koovra.Cto.AutocadAddin.Map;
@@ -792,18 +793,211 @@ namespace Koovra.Cto.AutocadAddin.UI
             var doc = AcApp.DocumentManager.MdiActiveDocument;
             var s   = AddinSettings.Current;
             int total = 0;
+            var odQueue = new List<System.Tuple<ObjectId, int>>();
 
             using (doc.LockDocument())
-            using (var tr = doc.Database.TransactionManager.StartTransaction())
             {
-                var dep    = new CtoBlockDeployer(s.BlockNameDesp, s.BlockNameCrec, s.CtoLayerName);
-                int purged = dep.PurgeExistingBlocks(tr, doc.Database);
-                foreach (ObjectId pid in polesIds)
-                    total += dep.DeployForPole(tr, doc.Database, pid);
-                tr.Commit();
+                using (var tr = doc.Database.TransactionManager.StartTransaction())
+                {
+                    ObjectDataWriter.EnsureTable();
+                    var dep    = new CtoBlockDeployer(s.BlockNameDesp, s.BlockNameCrec,
+                                                      s.CtoLayerNameDesp, s.CtoLayerNameCrec);
+                    int purged = dep.PurgeExistingBlocks(tr, doc.Database);
+                    int purgedCircles = dep.PurgeAlertCircles(tr, doc.Database);
+                    if (purgedCircles > 0)
+                        AppendLog($"Purga círculos alerta: {purgedCircles} círculos previos borrados.", LogLevel.Info);
 
-                if (purged > 0)
-                    AppendLog($"Purga previa: {purged} bloques en capa '{s.CtoLayerName}' borrados antes del deploy.", LogLevel.Info);
+                    // ── Agrupar por ID_SEGMENT para distribuir HP a nivel SEGMENTO ──
+                    var polesBySeg = new Dictionary<string, List<ObjectId>>(
+                        StringComparer.OrdinalIgnoreCase);
+                    var orphanPoles = new List<ObjectId>();
+                    foreach (ObjectId pid in polesIds)
+                    {
+                        string segId = XDataManager.GetString(tr, pid, XDataKeys.ID_SEGMENT) ?? string.Empty;
+                        if (string.IsNullOrEmpty(segId)) { orphanPoles.Add(pid); continue; }
+                        if (!polesBySeg.TryGetValue(segId, out var list))
+                            polesBySeg[segId] = list = new List<ObjectId>();
+                        list.Add(pid);
+                    }
+
+                    foreach (var kv in polesBySeg)
+                    {
+                        var segPoles = kv.Value;
+                        int hpSeg = 0;
+                        int totalDesp = 0;
+                        foreach (var pid in segPoles)
+                        {
+                            if (hpSeg == 0) hpSeg = XDataManager.GetInt(tr, pid, XDataKeys.HP) ?? 0;
+                            totalDesp += XDataManager.GetInt(tr, pid, XDataKeys.C_DESP) ?? 0;
+                        }
+                        int[] allHp = HpDistributor.Distribute(hpSeg, totalDesp);
+
+                        int offset = 0;
+                        foreach (var pid in segPoles)
+                        {
+                            int cDespPole = XDataManager.GetInt(tr, pid, XDataKeys.C_DESP) ?? 0;
+                            int[] slice = new int[cDespPole];
+                            for (int i = 0; i < cDespPole && (offset + i) < allHp.Length; i++)
+                                slice[i] = allHp[offset + i];
+                            offset += cDespPole;
+                            total += dep.DeployForPole(tr, doc.Database, pid, slice, odQueue);
+                        }
+                    }
+
+                    foreach (ObjectId pid in orphanPoles)
+                    {
+                        int hp = XDataManager.GetInt(tr, pid, XDataKeys.HP) ?? 0;
+                        int cd = XDataManager.GetInt(tr, pid, XDataKeys.C_DESP) ?? 0;
+                        int[] slice = HpDistributor.Distribute(hp, cd);
+                        total += dep.DeployForPole(tr, doc.Database, pid, slice, odQueue);
+                    }
+
+                    // ── Cargar CONT_HP del DWG y mapear segmento → bloque (para rotación) ──
+                    ObjectIdCollection segmentos = SelectionContext.Instance.Segmentos;
+                    if (segmentos == null || segmentos.Count == 0)
+                        segmentos = SelectionService.SelectSegmentos(doc.Editor);
+                    var hpBlocks = TextBufferCollector.LoadAllHpBlocks(tr, doc.Editor, segmentos);
+                    AppendLog($"CONT_HP cargados: {hpBlocks.Count} (con segmento asociado).", LogLevel.Info);
+
+                    var hpBySeg = new Dictionary<string, TextBufferCollector.HpBlock>(
+                        StringComparer.OrdinalIgnoreCase);
+                    foreach (var hb in hpBlocks)
+                    {
+                        if (!string.IsNullOrEmpty(hb.SegmentId) && !hpBySeg.ContainsKey(hb.SegmentId))
+                            hpBySeg[hb.SegmentId] = hb;
+                    }
+
+                    // ── Overflow: cajas que no cupieron en postes → midpoint del segmento ──
+                    // La rotación de las cajas overflow se toma del CONT_HP del segmento.
+                    foreach (var kv2 in polesBySeg)
+                    {
+                        string segIdOvf    = kv2.Key;
+                        var    segPolesOvf = kv2.Value;
+
+                        ObjectId anchorPole = segPolesOvf[0];
+                        int ovfD = XDataManager.GetInt(tr, anchorPole, XDataKeys.C_DESP_OVF) ?? 0;
+                        int ovfC = XDataManager.GetInt(tr, anchorPole, XDataKeys.C_CREC_OVF) ?? 0;
+                        if (ovfD + ovfC == 0) continue;
+
+                        int hpOvf = 0;
+                        foreach (var pid2 in segPolesOvf)
+                        {
+                            hpOvf = XDataManager.GetInt(tr, pid2, XDataKeys.HP) ?? 0;
+                            if (hpOvf > 0) break;
+                        }
+
+                        // Rotación desde el CONT_HP del segmento (default 0 si no se encuentra).
+                        double rotOvf = 0.0;
+                        if (hpBySeg.TryGetValue(segIdOvf, out var hbOvf))
+                            rotOvf = hbOvf.Rotation;
+
+                        Point3d midPt = Point3d.Origin;
+                        bool midFound = false;
+                        if (long.TryParse(segIdOvf, System.Globalization.NumberStyles.HexNumber,
+                                System.Globalization.CultureInfo.InvariantCulture, out long hv2)
+                            && doc.Database.TryGetObjectId(new Handle(hv2), out ObjectId segCurveId2))
+                        {
+                            var segCurveOvf = tr.GetObject(segCurveId2, OpenMode.ForRead) as Curve;
+                            if (segCurveOvf != null)
+                            {
+                                Vector3d rawDir2 = segCurveOvf.EndPoint - segCurveOvf.StartPoint;
+                                midPt = segCurveOvf.StartPoint + rawDir2 * 0.5;
+                                midFound = true;
+                            }
+                        }
+                        if (!midFound)
+                        {
+                            double sx = 0, sy = 0, sz = 0;
+                            foreach (var pid2 in segPolesOvf)
+                            {
+                                var ent2 = tr.GetObject(pid2, OpenMode.ForRead) as Entity;
+                                Point3d p2 = Extensions.GetInsertionOrPosition(ent2);
+                                sx += p2.X; sy += p2.Y; sz += p2.Z;
+                            }
+                            int n2 = segPolesOvf.Count;
+                            midPt = new Point3d(sx / n2, sy / n2, sz / n2);
+                        }
+
+                        int[] hpOvfSlice = HpDistributor.Distribute(hpOvf, ovfD);
+                        int placed = dep.DeployAtPoint(tr, doc.Database, midPt, ovfD, ovfC, hpOvfSlice, odQueue, rotOvf);
+                        if (placed > 0) dep.DrawAlertCircle(tr, doc.Database, midPt);
+                        AppendLog($"Overflow seg {segIdOvf.Substring(0, Math.Min(segIdOvf.Length, 6))}: " +
+                                  $"{ovfD}D+{ovfC}C → midpoint ({midPt.X:F0},{midPt.Y:F0}) rot={rotOvf:F2} placed={placed}.",
+                                  LogLevel.Info);
+                        total += placed;
+                    }
+
+                    // ── CONT_HP de segmentos sin postes en selección → midpoint ───
+                    foreach (var hpBlock in hpBlocks)
+                    {
+                        bool tieneCapas = false;
+                        if (!string.IsNullOrEmpty(hpBlock.SegmentId)
+                            && polesBySeg.TryGetValue(hpBlock.SegmentId, out var polesOfSeg))
+                        {
+                            foreach (var pid3 in polesOfSeg)
+                            {
+                                int cDesp = XDataManager.GetInt(tr, pid3, XDataKeys.C_DESP) ?? 0;
+                                int cCrec = XDataManager.GetInt(tr, pid3, XDataKeys.C_CREC) ?? 0;
+                                if (cDesp + cCrec > 0) { tieneCapas = true; break; }
+                            }
+                        }
+                        if (tieneCapas) continue;
+
+                        double largo = 0.0;
+                        Point3d insertPt = hpBlock.Position;
+                        if (!string.IsNullOrEmpty(hpBlock.SegmentId)
+                            && long.TryParse(hpBlock.SegmentId, System.Globalization.NumberStyles.HexNumber,
+                                             System.Globalization.CultureInfo.InvariantCulture, out long hv3)
+                            && doc.Database.TryGetObjectId(new Handle(hv3), out ObjectId segId3))
+                        {
+                            var segCurve = tr.GetObject(segId3, OpenMode.ForRead) as Curve;
+                            if (segCurve != null)
+                            {
+                                try { largo = segCurve.GetDistanceAtParameter(segCurve.EndParam); }
+                                catch { largo = segCurve.StartPoint.DistanceTo(segCurve.EndPoint); }
+                                Vector3d segDir3 = segCurve.EndPoint - segCurve.StartPoint;
+                                insertPt = segCurve.StartPoint + segDir3 * 0.5;
+                            }
+                        }
+
+                        var r = Koovra.Cto.Core.CtoCountCalculator.Calculate(hpBlock.Hp, largo);
+                        if (r.CDesp + r.CCrec > 0)
+                        {
+                            int[] hpSlice = HpDistributor.Distribute(hpBlock.Hp, r.CDesp);
+                            int placed2 = dep.DeployAtPoint(tr, doc.Database, insertPt,
+                                r.CDesp, r.CCrec, hpSlice, odQueue, hpBlock.Rotation);
+                            if (placed2 > 0) dep.DrawAlertCircle(tr, doc.Database, insertPt);
+                            total += placed2;
+                            AppendLog($"Sin postes: HP={hpBlock.Hp} seg={hpBlock.SegmentId?.Substring(0, Math.Min(hpBlock.SegmentId?.Length ?? 0, 6))} → " +
+                                      $"{r.CDesp}D+{r.CCrec}C en midpoint ({insertPt.X:F0},{insertPt.Y:F0}) rot={hpBlock.Rotation:F2} placed={placed2}.",
+                                      LogLevel.Info);
+                        }
+                    }
+
+                    tr.Commit();
+
+                    if (purged > 0)
+                        AppendLog($"Purga previa: {purged} bloques en capa '{s.CtoLayerName}' borrados antes del deploy.", LogLevel.Info);
+                }
+
+                // ── Segunda pasada: OD en entidades ya commiteadas ───────────
+                if (odQueue.Count > 0)
+                {
+                    try
+                    {
+                        using (var trOd = doc.Database.TransactionManager.StartTransaction())
+                        {
+                            foreach (var entry in odQueue)
+                                ObjectDataWriter.WriteCajaAcceso(entry.Item1, entry.Item2);
+                            trOd.Commit();
+                        }
+                        AppendLog($"OD CAJA_ACCESO escrito en {odQueue.Count} bloques.", LogLevel.Ok);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        AppendLog($"OD falló: {ex.GetType().Name} — {ex.Message}", LogLevel.Warn);
+                    }
+                }
             }
 
             _rowDesplegar.SetStatus(StepStatus.Ok);

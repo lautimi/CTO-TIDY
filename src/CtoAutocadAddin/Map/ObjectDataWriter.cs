@@ -58,11 +58,6 @@ namespace Koovra.Cto.AutocadAddin.Map
             }
         }
 
-        /// <summary>
-        /// Escribe (o sobreescribe) el OD CAJA_ACCESO en el bloque indicado.
-        /// Para cajas de crecimiento pasar hpEje=0.
-        /// Usa GetObjectTableRecords con OpenForWrite+create=true para obtener o crear el record.
-        /// </summary>
         public static void WriteCajaAcceso(ObjectId blockRefId, int hpEje)
         {
             try
@@ -80,24 +75,12 @@ namespace Koovra.Cto.AutocadAddin.Map
                 }
                 if (table == null) return;
 
-                // OpenForWrite + createIfNotExists=true → obtiene el record existente
-                // o crea uno nuevo si no hay ninguno para esta entidad.
-                Records records = table.GetObjectTableRecords(
-                    0, blockRefId, Autodesk.Gis.Map.Constants.OpenMode.OpenForWrite, true);
-
-                if (records == null)
-                {
-                    AcadLogger.Warn($"ObjectDataWriter.WriteCajaAcceso: no se pudo obtener/crear record para {blockRefId}.");
-                    return;
-                }
-
-                foreach (Record record in records)
-                {
-                    SetCell(record, 0, string.Empty);  // ACRÓNIMO
-                    SetCell(record, 1, hpEje);          // HP_EJE
-                    SetCell(record, 2, string.Empty);   // ID_SEGMENTO
-                    break; // Solo necesitamos el primer record
-                }
+                Record record = Record.Create();
+                table.InitRecord(record);
+                SetCell(record, 0, string.Empty);   // ACRÓNIMO
+                SetCell(record, 1, hpEje);           // HP_EJE
+                SetCell(record, 2, string.Empty);    // ID_SEGMENTO
+                table.AddRecord(record, blockRefId);
             }
             catch (Exception ex)
             {

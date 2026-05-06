@@ -10,8 +10,8 @@ desde la línea de comandos de AutoCAD después de `NETLOAD` del DLL.
 | 0 | `CTO_SELECCIONAR_POSTES` | `SeleccionarPostesCommand.cs` | Selección manual de postes. Guarda el `ObjectId[]` en `SelectionContext` (singleton) para los siguientes comandos. |
 | 1 | `CTO_ASOCIAR_POSTES`     | `AsociarPostesCommand.cs`    | Asocia cada poste al segmento de calle por raycast ortogonal. También asocia frente de manzana y linga más cercana. Escribe: `ID_SEGMENT`, `LARGO`, `ID_FRENTE`, `LARGO_FRENTE`, `ID_LINGA`, `LINGA_TIPO`, `LARGO_LINGA`, `REVISAR`. |
 | 2 | `CTO_LEER_COMENTARIOS`   | `LeerComentariosCommand.cs`  | Captura textos en buffer circular alrededor del poste. Escribe: `HP`, `COMENTARIOS`. |
-| 4 | `CTO_CALCULAR`           | `CalcularCtosCommand.cs`     | Aplica la tabla oficial (HP × Largo). Agrupa por `ID_SEGMENT`, usa voto mayoritario para `LARGO_FRENTE`, distribuye round-robin D,C,D,C. Escribe: `C_DESP`, `C_CREC`. |
-| 5 | `CTO_DESPLEGAR`          | `DesplegarCtosCommand.cs`    | Purga bloques previos en capa CTO (idempotente) + inserta `CAJA_ACCESO_b` (×`C_DESP`) y `CAJA_CRECIMIENTO` (×`C_CREC`) rotados con ángulo de linga (fallback: segmento). |
+| 4 | `CTO_CALCULAR`           | `CalcularCtosCommand.cs`     | Aplica la tabla oficial (HP × Largo). Agrupa por `ID_SEGMENT`, usa voto mayoritario para `LARGO_FRENTE`, distribuye D-C-D intercalado por mayoría con cap 1D+1C por poste. Escribe: `C_DESP`, `C_CREC`, `C_DESP_OVF`, `C_CREC_OVF`. |
+| 5 | `CTO_DESPLEGAR`          | `DesplegarCtosCommand.cs`    | Purga bloques previos en capas `CAJA ACCESO b` y `CAJA ACCESO b-PR` + círculos de alerta (idempotente). Inserta cajas D en `CtoLayerNameDesp` y C en `CtoLayerNameCrec`, rotadas por ángulo de linga (fallback: segmento). Para postes con 1D+1C simultáneo, C se inserta con `extraOffsetY = 3.54m`. Lee overflow `C_DESP_OVF`/`C_CREC_OVF` y los despliega al midpoint del segmento con círculo de alerta r=10. Idem para segmentos sin postes seleccionados. |
 | 1-5 | `CTO_RUN_ALL`          | `RunAllCommand.cs`           | Encadena los pasos 1 → 5 en una sola transacción por paso. |
 
 No existe un paso 3 separado — la asociación de frentes y lingas ocurre
@@ -45,7 +45,9 @@ Configuración en `Models/AddinSettings.cs` (singleton `AddinSettings.Current`):
 
 - `BlockNameDesp` — nombre del bloque para C_DESP (default: `CAJA_ACCESO_b`).
 - `BlockNameCrec` — nombre del bloque para C_CREC (default: `CAJA_CRECIMIENTO`).
-- `CtoLayerName`  — capa donde se insertan los bloques (default: `CTO`).
+- `CtoLayerName`  — capa legacy (no se usa en nuevos deploys).
+- `CtoLayerNameDesp` — capa para bloques D (default: `CAJA ACCESO b`).
+- `CtoLayerNameCrec` — capa para bloques C (default: `CAJA ACCESO b-PR`).
 - `PoleLayerName` — layer del cual `SelectionService` filtra postes. Configurable en runtime.
 - `ObservationCodes` — lista de códigos que empujan un poste al final del ranking PRIORIDAD. Ver semilla en `docs/especificacion.md` §9.
 

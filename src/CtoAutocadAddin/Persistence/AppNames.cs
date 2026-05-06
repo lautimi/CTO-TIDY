@@ -13,6 +13,8 @@ namespace Koovra.Cto.AutocadAddin.Persistence
         public const string LARGO       = "LARGO";
         public const string C_DESP      = "C_DESP";
         public const string C_CREC      = "C_CREC";
+        public const string C_DESP_OVF  = "C_DESP_OVF";  // overflow D de este segmento (escrito por Paso 4, leído por Paso 5)
+        public const string C_CREC_OVF  = "C_CREC_OVF";  // overflow C de este segmento
         public const string REVISAR     = "REVISAR";
 
         // ── Linga de acero (paso 2) ──────────────────────────────────────────
