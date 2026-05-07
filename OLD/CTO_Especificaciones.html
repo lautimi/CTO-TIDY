@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CTO AutoCAD Add-In — Especificaciones Técnicas</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.55;
+    color: #1a1a2e;
+    background: #fff;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 32px 40px;
+  }
+
+  /* ── Portada ── */
+  .cover {
+    text-align: center;
+    padding: 48px 0 36px;
+    border-bottom: 3px solid #0d47a1;
+    margin-bottom: 36px;
+  }
+  .cover .badge {
+    display: inline-block;
+    background: #0d47a1;
+    color: #fff;
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    padding: 3px 12px;
+    border-radius: 3px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+  }
+  .cover h1 {
+    font-size: 22pt;
+    font-weight: 700;
+    color: #0d47a1;
+    margin-bottom: 6px;
+  }
+  .cover h2 {
+    font-size: 13pt;
+    font-weight: 400;
+    color: #555;
+    margin-bottom: 20px;
+  }
+  .cover .meta {
+    font-size: 9pt;
+    color: #888;
+  }
+
+  /* ── Headings ── */
+  h2 {
+    font-size: 14pt;
+    font-weight: 700;
+    color: #0d47a1;
+    border-bottom: 2px solid #0d47a1;
+    padding-bottom: 4px;
+    margin: 32px 0 12px;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #1565c0;
+    margin: 20px 0 8px;
+    page-break-after: avoid;
+  }
+  h4 {
+    font-size: 10pt;
+    font-weight: 700;
+    color: #1976d2;
+    margin: 14px 0 6px;
+  }
+
+  p { margin-bottom: 8px; }
+
+  /* ── Bloques de código ── */
+  pre {
+    background: #f5f7fa;
+    border: 1px solid #d0d7de;
+    border-left: 4px solid #0d47a1;
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 8.5pt;
+    line-height: 1.45;
+    overflow-x: auto;
+    margin: 8px 0 14px;
+    page-break-inside: avoid;
+  }
+  code {
+    background: #eef2f7;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 8.5pt;
+    color: #c0392b;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+
+  /* ── Tablas ── */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 10px 0 18px;
+    font-size: 9.5pt;
+    page-break-inside: avoid;
+  }
+  thead { background: #0d47a1; color: #fff; }
+  thead th { padding: 7px 10px; text-align: left; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #f0f4f8; }
+  tbody td { padding: 6px 10px; border-bottom: 1px solid #d8dde3; }
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* ── Callouts ── */
+  .callout {
+    border-radius: 5px;
+    padding: 10px 14px;
+    margin: 12px 0;
+    font-size: 9.5pt;
+    page-break-inside: avoid;
+  }
+  .callout-info   { background: #e3f2fd; border-left: 4px solid #1976d2; }
+  .callout-warn   { background: #fff8e1; border-left: 4px solid #f9a825; }
+  .callout-danger { background: #fce4ec; border-left: 4px solid #c62828; }
+  .callout-ok     { background: #e8f5e9; border-left: 4px solid #2e7d32; }
+
+  /* ── Listas ── */
+  ul, ol { margin: 6px 0 10px 20px; }
+  li { margin-bottom: 3px; }
+
+  /* ── TOC ── */
+  .toc {
+    background: #f8fafc;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 14px 20px;
+    margin-bottom: 32px;
+  }
+  .toc h3 { margin-top: 0; color: #0d47a1; }
+  .toc ol { margin-left: 16px; }
+  .toc li { margin-bottom: 4px; }
+  .toc a { color: #1565c0; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  /* ── Badge inline ── */
+  .tag {
+    display: inline-block;
+    font-size: 7.5pt;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 10px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .tag-blue   { background: #e3f2fd; color: #0d47a1; }
+  .tag-green  { background: #e8f5e9; color: #2e7d32; }
+  .tag-orange { background: #fff3e0; color: #bf360c; }
+
+  /* ── Sección de flujo ── */
+  .step {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin: 10px 0;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border-radius: 5px;
+    border: 1px solid #d8dde3;
+    page-break-inside: avoid;
+  }
+  .step-num {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    background: #0d47a1;
+    color: #fff;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 11pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .step-body { flex: 1; }
+  .step-body strong { display: block; font-size: 10pt; }
+  .step-body span   { font-size: 9pt; color: #555; }
+
+  /* ── Print ── */
+  @media print {
+    body { max-width: 100%; padding: 0; font-size: 10pt; }
+    a { color: inherit; }
+    h2 { page-break-before: always; }
+    h2:first-of-type { page-break-before: avoid; }
+    .no-print { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- PORTADA -->
+<div class="cover">
+  <div class="badge">Koovra · FTTH Engineering Tools</div>
+  <h1>CTO AutoCAD Add-In</h1>
+  <h2>Especificaciones Técnicas Completas</h2>
+  <div class="meta">
+    Versión con integración LINGAS DE ACERO &nbsp;·&nbsp; Revisión 2026-04-21<br>
+    Proyecto: <strong>CTO EN AUTOCAD</strong> &nbsp;·&nbsp;
+    Namespace: <code>Koovra.Cto.AutocadAddin</code>
+  </div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <h3>Contenido</h3>
+  <ol>
+    <li><a href="#objetivo">Objetivo del sistema</a></li>
+    <li><a href="#stack">Stack y entorno de compilación</a></li>
+    <li><a href="#arquitectura">Arquitectura y estructura de proyectos</a></li>
+    <li><a href="#capas">Capas del DWG y su rol</a></li>
+    <li><a href="#workflow">Workflow de 5 pasos</a></li>
+    <li><a href="#persistencia">Persistencia: XData por poste</a></li>
+    <li><a href="#tabla">Tabla oficial de CTOs (HP × Largo)</a></li>
+    <li><a href="#algoritmos">Algoritmos clave</a></li>
+    <li><a href="#comandos">Comandos AutoCAD disponibles</a></li>
+    <li><a href="#constantes">Constantes de geometría</a></li>
+    <li><a href="#bloques">Bloques DWG requeridos</a></li>
+    <li><a href="#reglas">Reglas de implementación</a></li>
+    <li><a href="#verificacion">Plan de verificación</a></li>
+  </ol>
+</div>
+
+<!-- 1 -->
+<h2 id="objetivo">1. Objetivo del sistema</h2>
+<p>
+  Add-In nativo para <strong>AutoCAD Map 3D 2020</strong> que migra el workflow completo de cálculo
+  y despliegue de <strong>Cajas Terminales Ópticas (CTO)</strong> para redes FTTH,
+  proceso actualmente ejecutado en QGIS mediante scripts Python.
+</p>
+<p>El add-in automatiza:</p>
+<ul>
+  <li>Asociación de postes a segmentos de calle (raycast ortogonal sobre manzanas).</li>
+  <li>Asociación de postes a lingas de acero (cable físico real — determina frente principal).</li>
+  <li>Captura de Hogares Pasados (HP) desde bloques <code>CONT_HP</code>.</li>
+  <li>Cálculo de la cantidad de CTOs por linga según la tabla oficial cliente.</li>
+  <li>Inserción de bloques CTO rotados y posicionados según el cable físico.</li>
+</ul>
+
+<!-- 2 -->
+<h2 id="stack">2. Stack y entorno de compilación</h2>
+<table>
+  <thead><tr><th>Parámetro</th><th>Valor</th></tr></thead>
+  <tbody>
+    <tr><td>AutoCAD target</td><td>AutoCAD Map 3D 2020 (ObjectARX 2020, R23.1)</td></tr>
+    <tr><td>TargetFramework (add-in)</td><td>net47 (.NET Framework 4.7)</td></tr>
+    <tr><td>TargetFramework (core)</td><td>netstandard2.0</td></tr>
+    <tr><td>Platform</td><td>x64 exclusivamente</td></tr>
+    <tr><td>LangVersion</td><td>7.3 (compatible con net47)</td></tr>
+    <tr><td>Output add-in</td><td><code>bin\x64\Release\CtoAutocadAddin.dll</code></td></tr>
+    <tr><td>NuGet</td><td>Microsoft.NETFramework.ReferenceAssemblies.net47 v1.0.3</td></tr>
+    <tr><td>Referencias AutoCAD</td><td>AcMgd.dll, AcCoreMgd.dll, AcDbMgd.dll (Private=False)</td></tr>
+    <tr><td>Ruta referencias</td><td>C:\Program Files\Autodesk\AutoCAD 2020\</td></tr>
+  </tbody>
+</table>
+
+<h3>Deploy</h3>
+<ol>
+  <li>Build Release x64 → <code>bin\x64\Release\CtoAutocadAddin.dll</code>.</li>
+  <li>En AutoCAD: comando <code>NETLOAD</code> → elegir la DLL.</li>
+  <li>Autoload opcional: registro en <code>HKCU\Software\Autodesk\AutoCAD\R23.1\ACAD-2001:409\Applications\CtoAutocadAddin</code>
+    con valores <code>LOADCTRLS=14</code>, <code>LOADER=&lt;ruta dll&gt;</code>, <code>MANAGED=1</code>.</li>
+</ol>
+
+<!-- 3 -->
+<h2 id="arquitectura">3. Arquitectura y estructura de proyectos</h2>
+<pre>
+CTO EN AUTOCAD/
+├── src/
+│   ├── CtoAutocadAddin/                 (.NET Framework 4.7 — DLL AutoCAD)
+│   │   ├── Commands/
+│   │   │   ├── AsociarPostesCommand.cs      CTO_ASOCIAR_POSTES
+│   │   │   ├── CalcularCtosCommand.cs       CTO_CALCULAR  + CtoDistributor
+│   │   │   ├── DesplegarCtosCommand.cs      CTO_DESPLEGAR
+│   │   │   ├── LeerComentariosCommand.cs    CTO_LEER_COMENTARIOS
+│   │   │   ├── PanelCommand.cs              CTO_PANEL
+│   │   │   ├── RunAllCommand.cs             CTO_RUN_ALL
+│   │   │   └── SeleccionarPostesCommand.cs  CTO_SELECCIONAR_POSTES
+│   │   ├── Geometry/
+│   │   │   ├── AntiCrossingFilter.cs
+│   │   │   ├── Extensions.cs
+│   │   │   ├── GeometryConstants.cs
+│   │   │   ├── RayCaster.cs
+│   │   │   ├── SegmentNormalCalculator.cs
+│   │   │   └── SpatialIndex.cs
+│   │   ├── Infrastructure/
+│   │   │   └── AcadLogger.cs
+│   │   ├── Models/
+│   │   │   ├── AddinSettings.cs
+│   │   │   ├── PoleInfo.cs
+│   │   │   └── SelectionContext.cs
+│   │   ├── Persistence/
+│   │   │   ├── AppNames.cs               AppName "KOOVRA_CTO" + XDataKeys
+│   │   │   └── XDataManager.cs
+│   │   ├── Services/
+│   │   │   ├── CtoBlockDeployer.cs       Inserta bloques CTO
+│   │   │   ├── PoleLingaAssociator.cs    Asocia poste → linga de acero
+│   │   │   ├── PoleSegmentAssociator.cs  Asocia poste → segmento (raycast)
+│   │   │   ├── SelectionService.cs       Auto-selección por capa
+│   │   │   └── TextBufferCollector.cs    HP desde CONT_HP + Observaciones
+│   │   └── UI/
+│   │       └── CtoPanel.cs               Panel WinForms modeless
+│   └── CtoAutocadAddin.Core/             (netstandard2.0 — lógica pura, testeable)
+│       └── CtoCountCalculator.cs         Tabla oficial HP × Largo
+└── CtoAutocadAddin.dll                  (copia lista para NETLOAD)
+</pre>
+
+<!-- 4 -->
+<h2 id="capas">4. Capas del DWG y su rol</h2>
+<table>
+  <thead><tr><th>Capa</th><th>Tipo de entidad</th><th>Rol en el workflow</th></tr></thead>
+  <tbody>
+    <tr><td><code>POSTE_*</code></td><td>INSERT (bloque)</td><td>Postes de la red. Seleccionados automáticamente en Paso 1.</td></tr>
+    <tr><td><code>MANZANA</code></td><td>LWPOLYLINE / POLYLINE (cerradas)</td><td>Polígonos de manzana. Base del raycast ortogonal en Paso 2.</td></tr>
+    <tr><td><code>SEGMENTO</code></td><td>LINE</td><td>Ejes abstractos de calle. Destino del raycast. Proveen HP vía CONT_HP.</td></tr>
+    <tr><td><code>LINGA DE ACERO_PRIORIDAD</code></td><td>LINE</td><td>Cable físico del frente principal. Los postes de esta linga reciben CTOs.</td></tr>
+    <tr><td><code>LINGA DE ACERO_SECUNDARIA</code></td><td>LINE</td><td>Cable del frente secundario. Los postes asociados siempre reciben C_DESP=0, C_CREC=0.</td></tr>
+    <tr><td><code>Conteo HP</code></td><td>INSERT (bloque <code>CONT_HP</code>)</td><td>Bloques con atributos SDU y MDU. Ubicados en el eje de calle. Se asocian al SEGMENTO más cercano (radio ≤100 m).</td></tr>
+    <tr><td><code>OBSERVACIONES</code></td><td>MText / DBText</td><td>Textos de campo. Capturados en buffer circular alrededor del poste (radio configurable).</td></tr>
+    <tr><td><code>CTO</code> (creada)</td><td>INSERT (bloques CTO)</td><td>Capa donde se insertan los bloques <code>CAJA_ACCESO_b</code> y <code>CAJA_CRECIMIENTO</code>.</td></tr>
+  </tbody>
+</table>
+
+<!-- 5 -->
+<h2 id="workflow">5. Workflow de 5 pasos</h2>
+
+<div class="step">
+  <div class="step-num">1</div>
+  <div class="step-body">
+    <strong>CTO_SELECCIONAR_POSTES — Selección de postes</strong>
+    <span>Auto-selecciona todos los INSERT en capas con patrón <code>POSTE_*</code>. Guarda los ObjectIds en <code>SelectionContext</code> (singleton de sesión). Los pasos 2–5 dependen de que este paso se haya ejecutado.</span>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">2</div>
+  <div class="step-body">
+    <strong>CTO_ASOCIAR_POSTES — Asociación poste → Segmento + Linga</strong>
+    <span>Para cada poste lanza dos asociaciones en paralelo:
+      <br><b>Segmento:</b> Raycast ortogonal desde la manzana más cercana. Guarda ID_SEGMENT (handle hex) + LARGO + REVISAR.
+      <br><b>Linga:</b> <code>Line.GetClosestPointTo()</code> sobre ambas capas. Guarda ID_LINGA, LINGA_TIPO (PRIORIDAD/SECUNDARIA), LARGO_LINGA.
+      <br>Radio máximo linga: 15 m.</span>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">3</div>
+  <div class="step-body">
+    <strong>CTO_LEER_COMENTARIOS — Captura HP y observaciones</strong>
+    <span>Carga todos los bloques CONT_HP UNA SOLA VEZ y los asocia a su segmento más cercano (radio ≤100 m). Construye mapa <code>segmentHandle → HP_total</code>. Cada poste hereda HP de su ID_SEGMENT. Además captura MText de capa OBSERVACIONES en buffer circular (radio configurable en el panel).</span>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">4</div>
+  <div class="step-body">
+    <strong>CTO_CALCULAR — Cálculo y distribución de CTOs</strong>
+    <span>Agrupa postes por ID_LINGA (solo PRIORIDAD). Postes SECUNDARIA o sin linga: C_DESP=0, C_CREC=0. Por cada linga: aplica tabla oficial (HP × LARGO_LINGA). Ordena postes por cercanía al punto medio de la linga. Genera secuencia intercalada D,C,D,C. Distribuye round-robin a los postes más centrales. Escribe C_DESP y C_CREC en XData de cada poste.</span>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">5</div>
+  <div class="step-body">
+    <strong>CTO_DESPLEGAR — Inserción de bloques CTO</strong>
+    <span>Por cada poste con C_DESP+C_CREC &gt; 0: calcula ángulo desde ID_LINGA (fallback: ID_SEGMENT). Inserta bloques intercalados DESP/CREC con offset rotado, en capa CTO. Si el bloque no existe en el DWG lanza excepción descriptiva.</span>
+  </div>
+</div>
+
+<h3>Botón "Ejecutar Todo"</h3>
+<p>El panel CTO_PANEL encadena los 5 pasos en orden. Cada paso actualiza su indicador visual (●) con colores: gris → amarillo → verde / rojo.</p>
+
+<!-- 6 -->
+<h2 id="persistencia">6. Persistencia: XData por poste</h2>
+<p>AppName único: <code>"KOOVRA_CTO"</code>. Se registra en <code>RegAppTable</code> al primer uso del DWG.</p>
+<table>
+  <thead><tr><th>Clave (XDataKeys)</th><th>Tipo AutoCAD</th><th>Descripción</th><th>Origen</th></tr></thead>
+  <tbody>
+    <tr><td><code>ID_SEGMENT</code></td><td>String</td><td>Handle hex del segmento de calle asociado</td><td>Paso 2 — raycast</td></tr>
+    <tr><td><code>LARGO</code></td><td>Real (double)</td><td>Largo en metros del segmento (eje abstracto)</td><td>Paso 2</td></tr>
+    <tr><td><code>REVISAR</code></td><td>String</td><td>OK | REVISAR | SIN_CALLE_POSTE | SIN_SEGMENTO</td><td>Paso 2</td></tr>
+    <tr><td><code>ID_LINGA</code></td><td>String</td><td>Handle hex de la Line de la linga asociada</td><td>Paso 2 — linga</td></tr>
+    <tr><td><code>LINGA_TIPO</code></td><td>String</td><td>PRIORIDAD | SECUNDARIA | "" (sin linga)</td><td>Paso 2 — linga</td></tr>
+    <tr><td><code>LARGO_LINGA</code></td><td>Real (double)</td><td>Largo real de la linga en metros (cable físico)</td><td>Paso 2 — linga</td></tr>
+    <tr><td><code>HP</code></td><td>Int32</td><td>Hogares Pasados — proyección futura 100%</td><td>Paso 3 — CONT_HP</td></tr>
+    <tr><td><code>COMENTARIOS</code></td><td>String (CSV)</td><td>Códigos de observación capturados en buffer</td><td>Paso 3 — buffer</td></tr>
+    <tr><td><code>C_DESP</code></td><td>Int16</td><td>Cantidad de CTOs Despliegue Inicial 40%</td><td>Paso 4</td></tr>
+    <tr><td><code>C_CREC</code></td><td>Int16</td><td>Cantidad de CTOs Crecimiento Futuro 100%</td><td>Paso 4</td></tr>
+  </tbody>
+</table>
+
+<h3>Reglas de ID/handle</h3>
+<p>Tanto <code>ID_SEGMENT</code> como <code>ID_LINGA</code> almacenan el <strong>Handle hex</strong> del objeto AutoCAD (eg. <code>"A3F"</code>).
+Round-trip:</p>
+<pre>// Guardar:  objectId.Handle.ToString()
+// Recuperar:
+long.TryParse(handleHex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out long hv);
+db.TryGetObjectId(new Handle(hv), out ObjectId id);</pre>
+
+<!-- 7 -->
+<h2 id="tabla">7. Tabla oficial de CTOs (HP × Largo)</h2>
+<p>Fuente: cliente Koovra. Corte de largo: <strong>160 m</strong>. Máximo por columna: 4 cajas. HP fuera de rango (&gt;64) usa el último renglón.</p>
+<table>
+  <thead>
+    <tr>
+      <th rowspan="2">HP futuro (100%)</th>
+      <th colspan="2">Largo ≤ 160 m</th>
+      <th colspan="2">Largo &gt; 160 m</th>
+    </tr>
+    <tr>
+      <th>C_DESP</th><th>C_CREC</th>
+      <th>C_DESP</th><th>C_CREC</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>1 – 2</td>  <td>0</td><td>1</td> <td>0</td><td>0</td></tr>
+    <tr><td>3 – 5</td>  <td>1</td><td>0</td> <td>1</td><td>0</td></tr>
+    <tr><td>6 – 8</td>  <td>1</td><td>0</td> <td>2</td><td>0</td></tr>
+    <tr><td>9 – 16</td> <td>1</td><td>1</td> <td>2</td><td>0</td></tr>
+    <tr><td>17 – 20</td><td>1</td><td>2</td> <td>2</td><td>1</td></tr>
+    <tr><td>21 – 24</td><td>2</td><td>1</td> <td>2</td><td>1</td></tr>
+    <tr><td>25 – 32</td><td>2</td><td>2</td> <td>2</td><td>2</td></tr>
+    <tr><td>33 – 40</td><td>2</td><td>3</td> <td>2</td><td>3</td></tr>
+    <tr><td>41 – 48</td><td>3</td><td>3</td> <td>3</td><td>3</td></tr>
+    <tr><td>49 – 56</td><td>3</td><td>4</td> <td>3</td><td>4</td></tr>
+    <tr><td>57 – 64</td><td>4</td><td>4</td> <td>4</td><td>4</td></tr>
+  </tbody>
+</table>
+<div class="callout callout-info">
+  <strong>Nota de aplicación:</strong> El LARGO usado es <code>LARGO_LINGA</code> (longitud física del cable),
+  no el largo del eje SEGMENTO. El HP usado es el total del segmento de calle (heredado de CONT_HP),
+  ya que el bloque CONT_HP cuenta casas de ambos lados de la calle y está asociado al eje.
+</div>
+
+<!-- 8 -->
+<h2 id="algoritmos">8. Algoritmos clave</h2>
+
+<h3>8.1 Raycast ortogonal (Paso 2 — Segmento)</h3>
+<ol>
+  <li>Para cada poste: busca la manzana más cercana usando <code>SpatialIndex</code> (bounding-box K vecinos → distancia real).</li>
+  <li>Obtiene el punto más cercano sobre el borde de la manzana (<code>Polyline.GetClosestPointTo</code>).</li>
+  <li>Calcula la normal ortogonal al borde en ese punto (<code>SegmentNormalCalculator</code>).</li>
+  <li>Lanza dos rayos (±normal, largo 150 m) desde ese punto hacia los segmentos.</li>
+  <li>El primer hit válido a distancia &gt; 0.01 m es el segmento candidato.</li>
+  <li><code>AntiCrossingFilter</code>: descarta el hit si el rayo cruza otra manzana antes de llegar al segmento (margen 2 m).</li>
+</ol>
+
+<h3>8.2 Asociación a linga (Paso 2 — Linga)</h3>
+<ol>
+  <li>Itera las colecciones PRIORIDAD y SECUNDARIA por separado.</li>
+  <li>Por cada Line: calcula <code>line.GetClosestPointTo(polePt, false)</code>.</li>
+  <li>Guarda la linga con distancia mínima entre ambas colecciones.</li>
+  <li>Si la distancia mínima supera 15 m (radio configurable): retorna outcome vacío (sin linga).</li>
+  <li><code>LARGO_LINGA</code> = <code>(line.EndPoint - line.StartPoint).Length</code>.</li>
+</ol>
+
+<h3>8.3 Asociación CONT_HP → Segmento (Paso 3)</h3>
+<ol>
+  <li>Selecciona todos los INSERT en capa <code>Conteo HP</code> con nombre de bloque <code>CONT_HP</code>.</li>
+  <li>Por cada bloque: suma atributos SDU + MDU = HP total del bloque.</li>
+  <li>Busca el segmento de calle más cercano al bloque (radio ≤ 100 m, igual que el raycast).</li>
+  <li>Construye mapa <code>segmentHandle → HP_total</code> (suma si hay múltiples bloques en el mismo segmento).</li>
+  <li>Cada poste consulta su <code>ID_SEGMENT</code> en el mapa para obtener el HP del segmento.</li>
+</ol>
+
+<h3>8.4 Distribución de CTOs (Paso 4)</h3>
+<ol>
+  <li>Agrupa postes por <code>ID_LINGA</code> (solo LINGA_TIPO == PRIORIDAD).</li>
+  <li>Postes SECUNDARIA o sin linga → C_DESP=0, C_CREC=0 (no reciben cajas).</li>
+  <li>Por linga: obtiene HP (del segmento, heredado) y LARGO_LINGA.</li>
+  <li>Aplica tabla oficial → obtiene C_DESP total y C_CREC total para esa linga.</li>
+  <li>Ordena postes por distancia al punto medio de la linga (los más centrales primero).</li>
+  <li>Genera secuencia intercalada: <code>D, C, D, C, ...</code> hasta agotar C_DESP y C_CREC.</li>
+  <li>Distribuye round-robin a los postes centrales. Si hay más CTOs que postes, algunos postes acumulan 2+.</li>
+  <li>Postes no elegidos: C_DESP=0, C_CREC=0.</li>
+</ol>
+<pre>// Secuencia intercalada
+int d = cDesp, c = cCrec;
+while (d > 0 || c > 0)
+{
+    if (d > 0) { sequence.Add(DESP); d--; }
+    if (c > 0) { sequence.Add(CREC); c--; }
+}</pre>
+
+<h3>8.5 Inserción de bloques CTO (Paso 5)</h3>
+<ol>
+  <li>Lee C_DESP y C_CREC del poste. Si suma = 0, salta.</li>
+  <li>Obtiene ángulo desde ID_LINGA (fallback: ID_SEGMENT): <code>Atan2(EndPoint.Y - StartPoint.Y, EndPoint.X - StartPoint.X)</code>.</li>
+  <li>Inserta bloques en secuencia D,C,D,C con offset rotado en el eje local de la linga.</li>
+  <li>Offset por slot: <code>X = CTO_OFFSET_X + slot × CTO_SEPARACION</code>, <code>Y = CTO_OFFSET_Y</code>, rotado por el ángulo de la linga.</li>
+</ol>
+
+<!-- 9 -->
+<h2 id="comandos">9. Comandos AutoCAD disponibles</h2>
+<table>
+  <thead><tr><th>Comando</th><th>Paso</th><th>CommandFlags</th><th>Descripción</th></tr></thead>
+  <tbody>
+    <tr><td><code>CTO_PANEL</code></td><td>—</td><td>Modal</td><td>Abre el panel WinForms modeless con los 5 pasos y log.</td></tr>
+    <tr><td><code>CTO_SELECCIONAR_POSTES</code></td><td>1</td><td>Modal</td><td>Auto-selecciona bloques en capas <code>POSTE_*</code>. Guarda ObjectIds en sesión.</td></tr>
+    <tr><td><code>CTO_ASOCIAR_POSTES</code></td><td>2</td><td>Modal</td><td>Raycast ortogonal (segmento) + cercanía (linga). Escribe XData.</td></tr>
+    <tr><td><code>CTO_LEER_COMENTARIOS</code></td><td>3</td><td>Modal</td><td>Carga CONT_HP, construye mapa HP/segmento, captura observaciones.</td></tr>
+    <tr><td><code>CTO_CALCULAR</code></td><td>4</td><td>Modal</td><td>Aplica tabla CTO por linga. Escribe C_DESP y C_CREC.</td></tr>
+    <tr><td><code>CTO_DESPLEGAR</code></td><td>5</td><td>Modal</td><td>Inserta bloques <code>CAJA_ACCESO_b</code> y <code>CAJA_CRECIMIENTO</code> rotados.</td></tr>
+    <tr><td><code>CTO_RUN_ALL</code></td><td>1→5</td><td>Modal</td><td>Encadena los 5 pasos en orden.</td></tr>
+  </tbody>
+</table>
+
+<!-- 10 -->
+<h2 id="constantes">10. Constantes de geometría</h2>
+<table>
+  <thead><tr><th>Constante</th><th>Valor</th><th>Descripción</th></tr></thead>
+  <tbody>
+    <tr><td><code>RAY_LENGTH</code></td><td>150.0 m</td><td>Largo de cada rayo ortogonal en el raycast</td></tr>
+    <tr><td><code>ANTI_CROSS_MARGIN</code></td><td>2.0 m</td><td>Margen del filtro anti-cruce de manzanas</td></tr>
+    <tr><td><code>NEAREST_NEIGHBOR_K</code></td><td>10</td><td>Candidatos bbox antes de calcular distancia real</td></tr>
+    <tr><td><code>EPSILON_DIST</code></td><td>0.01 m</td><td>Distancia mínima válida para una intersección</td></tr>
+    <tr><td><code>TEXT_BUFFER_DEFAULT</code></td><td>5.0 m</td><td>Radio default del buffer de textos OBSERVACIONES</td></tr>
+    <tr><td><code>CTO_OFFSET_X</code></td><td>2.0 m</td><td>Offset X del primer bloque CTO respecto al poste</td></tr>
+    <tr><td><code>CTO_OFFSET_Y</code></td><td>2.0 m</td><td>Offset Y del primer bloque CTO respecto al poste</td></tr>
+    <tr><td><code>CTO_SEPARACION</code></td><td>0.5 m</td><td>Separación entre bloques CTO consecutivos</td></tr>
+    <tr><td><code>LARGO_CORTE</code> (Core)</td><td>160.0 m</td><td>Umbral que separa ejes cortos y largos en la tabla</td></tr>
+    <tr><td><code>HpToSegmentMaxRadius</code></td><td>100.0 m</td><td>Radio máximo para asociar CONT_HP a un segmento</td></tr>
+    <tr><td><code>maxRadius</code> (linga)</td><td>15.0 m</td><td>Radio máximo para asociar un poste a una linga</td></tr>
+  </tbody>
+</table>
+
+<!-- 11 -->
+<h2 id="bloques">11. Bloques DWG requeridos</h2>
+<table>
+  <thead><tr><th>Nombre bloque</th><th>Rol</th><th>Config</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>CAJA_ACCESO_b</code></td>
+      <td>CTO de Despliegue Inicial (40%)</td>
+      <td><code>AddinSettings.BlockNameDesp</code></td>
+    </tr>
+    <tr>
+      <td><code>CAJA_CRECIMIENTO</code></td>
+      <td>CTO de Crecimiento Futuro (100%)</td>
+      <td><code>AddinSettings.BlockNameCrec</code></td>
+    </tr>
+    <tr>
+      <td><code>CONT_HP</code></td>
+      <td>Conteo Hogares Pasados</td>
+      <td>Atributos: <code>SDU</code> (int), <code>MDU</code> (int). Capa: <code>Conteo HP</code>.</td>
+    </tr>
+  </tbody>
+</table>
+<div class="callout callout-warn">
+  <strong>Importante:</strong> Los bloques <code>CAJA_ACCESO_b</code> y <code>CAJA_CRECIMIENTO</code> deben existir
+  en el DWG antes de ejecutar el Paso 5. Si no existen, el deployer lanza una excepción con el nombre del bloque faltante.
+</div>
+
+<!-- 12 -->
+<h2 id="reglas">12. Reglas de implementación</h2>
+
+<h3>Transacciones AutoCAD (críticas)</h3>
+<ul>
+  <li>Toda operación de lectura/escritura dentro de <code>using (Transaction tr = db.TransactionManager.StartTransaction())</code>.</li>
+  <li>Abrir con <code>OpenMode.ForRead</code> salvo que se modifique (<code>ForWrite</code>).</li>
+  <li><strong>NUNCA</strong> cachear <code>DBObject</code> fuera del scope de la transacción. Solo cachear <code>ObjectId</code>.</li>
+  <li>Siempre <code>tr.Commit()</code> al final del bloque exitoso.</li>
+  <li>Comandos que modifican el DWG: <code>CommandFlags.Modal</code> + <code>doc.LockDocument()</code> si son de thread secundario.</li>
+</ul>
+
+<h3>Convenciones C#</h3>
+<ul>
+  <li>PascalCase para tipos, métodos y propiedades; camelCase para locales y parámetros.</li>
+  <li>Comandos AutoCAD con prefijo <code>CTO_</code> en MAYÚSCULAS.</li>
+  <li>Namespace raíz: <code>Koovra.Cto.AutocadAddin</code> (AutoCAD) y <code>Koovra.Cto.Core</code> (lógica pura).</li>
+  <li><code>private readonly</code> cuando el campo no se reasigna; <code>const</code> solo para literales inmutables.</li>
+  <li><code>var</code> permitido solo donde el tipo es obvio; firmas públicas siempre con tipo explícito.</li>
+</ul>
+
+<h3>Logging</h3>
+<ul>
+  <li>Usar <code>AcadLogger.Info/Warn/Error</code> (wrappea <code>Editor.WriteMessage("\n...")</code>).</li>
+  <li>Operaciones largas: <code>ProgressMeter</code> (Start → SetLimit → MeterProgress por ítem → Stop).</li>
+</ul>
+
+<h3>Qué NO hacer</h3>
+<div class="callout callout-danger">
+  <ul style="margin-left:16px">
+    <li>No usar <code>async/await</code> dentro de código de transacción (COM de AutoCAD no es thread-safe).</li>
+    <li>No tocar el DWG sin <code>Document.LockDocument()</code> si se ejecuta fuera del thread principal.</li>
+    <li>No referenciar <code>Autodesk.AutoCAD.*</code> desde <code>CtoAutocadAddin.Core</code>.</li>
+    <li>No mantener variables con <code>DBObject</code> fuera del <code>using</code> de la transacción.</li>
+    <li>No usar nombres de capa hardcodeados para identificar entidades de postes.</li>
+  </ul>
+</div>
+
+<!-- 13 -->
+<h2 id="verificacion">13. Plan de verificación</h2>
+<ol>
+  <li><strong>Build Release x64</strong> — compilar con 0 errores / 0 warnings.</li>
+  <li><strong>Copiar</strong> <code>CtoAutocadAddin.dll</code> y <code>CtoAutocadAddin.Core.dll</code> a la raíz del proyecto.</li>
+  <li><strong>NETLOAD</strong> en AutoCAD sobre <code>CR001_CORRIENTES_A2_RELEVAMIETNO.dwg</code> (con backup previo).</li>
+  <li><strong>CTO_PANEL → Ejecutar Todo:</strong></li>
+</ol>
+<table>
+  <thead><tr><th>Paso</th><th>Qué verificar</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Paso 1</td>
+      <td>Log muestra "N postes". Indicador verde.</td>
+    </tr>
+    <tr>
+      <td>Paso 2</td>
+      <td>Log: <code>SEG: OK=N sin=M | LINGA: PRI=X SEC=Y sin=Z</code>. Con <code>LIST</code> en un poste: XData tiene <code>ID_LINGA</code>, <code>LINGA_TIPO</code>, <code>LARGO_LINGA</code>.</td>
+    </tr>
+    <tr>
+      <td>Paso 3</td>
+      <td>Log: <code>HP=N/Total</code>. Con <code>LIST</code> en un poste: campo <code>HP</code> es el total del segmento, no por poste individual.</td>
+    </tr>
+    <tr>
+      <td>Paso 4</td>
+      <td>Log: <code>N CTOs / M lingas</code>. C_DESP/C_CREC ≥ 0 según la tabla. Postes SECUNDARIA tienen 0,0.</td>
+    </tr>
+    <tr>
+      <td>Paso 5</td>
+      <td>Bloques aparecen <strong>solo del lado de LINGA_PRIORIDAD</strong>, alineados con el cable físico. Secuencia visible: D,C,D,C en postes centrales.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout callout-ok">
+  <strong>Validación visual clave:</strong> Antes de la integración con lingas, los bloques CTO aparecían en ambos lados de la calle. Tras esta implementación deben aparecer <strong>únicamente del lado LINGA_PRIORIDAD</strong> y con la rotación real del cable tendido.
+</div>
+
+<div style="text-align:center; margin-top:40px; padding-top:20px; border-top:1px solid #d0d7de; color:#999; font-size:8.5pt;">
+  CTO AutoCAD Add-In — Koovra · tomas.brunner@koovra.com · 2026-04-21
+</div>
+
+</body>
+</html>
