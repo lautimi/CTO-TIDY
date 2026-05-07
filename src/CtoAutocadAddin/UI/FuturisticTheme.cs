@@ -9,19 +9,41 @@ namespace Koovra.Cto.AutocadAddin.UI
 {
     internal static class FuturisticTheme
     {
-        // ── Design tokens ────────────────────────────────────────────────────
-        internal static readonly Color BgBase          = Color.FromArgb(0x0B, 0x12, 0x20);
-        internal static readonly Color BgPanel         = Color.FromArgb(0x12, 0x1A, 0x2B);
-        internal static readonly Color BgPanelHover    = Color.FromArgb(0x1A, 0x25, 0x40);
-        internal static readonly Color BorderSubtle    = Color.FromArgb(0x1E, 0x2A, 0x44);
-        internal static readonly Color BorderFocus     = Color.FromArgb(0x00, 0xBF, 0xFF);
-        internal static readonly Color AccentPrimary   = Color.FromArgb(0x00, 0xBF, 0xFF);
-        internal static readonly Color AccentSecondary = Color.FromArgb(0x1E, 0x90, 0xFF);
-        internal static readonly Color AccentGlow      = Color.FromArgb(0x33, 0x00, 0xBF, 0xFF);
-        internal static readonly Color TextPrimary     = Color.FromArgb(0xE6, 0xF1, 0xFF);
-        internal static readonly Color TextSecondary   = Color.FromArgb(0x8F, 0xA3, 0xBF);
-        internal static readonly Color TextMuted       = Color.FromArgb(0x5A, 0x6B, 0x85);
-        internal static readonly Color Danger          = Color.FromArgb(0xFF, 0x55, 0x77);
+        // ── Design tokens — Vezeel Group palette ─────────────────────────────
+        // Brand
+        internal static readonly Color BrandNavy        = Color.FromArgb(0x1B, 0x2D, 0x4F);
+        internal static readonly Color BrandNavyHi      = Color.FromArgb(0x24, 0x3A, 0x66);
+        internal static readonly Color BrandSteel       = Color.FromArgb(0x5B, 0x7F, 0xA8);
+        internal static readonly Color BrandSteelHi     = Color.FromArgb(0x7B, 0xA0, 0xC8);
+        internal static readonly Color BrandMist        = Color.FromArgb(0x8F, 0xA8, 0xC4);
+        // Surfaces
+        internal static readonly Color BgBase           = Color.FromArgb(0x0E, 0x1A, 0x2E);
+        internal static readonly Color BgPanel          = Color.FromArgb(0x16, 0x24, 0x3D);
+        internal static readonly Color BgPanelHover     = Color.FromArgb(0x1E, 0x30, 0x52);
+        internal static readonly Color BgElev           = Color.FromArgb(0x1A, 0x29, 0x44);
+        // Borders
+        internal static readonly Color BorderSubtle     = Color.FromArgb(0x24, 0x3A, 0x5A);
+        internal static readonly Color BorderStrong     = Color.FromArgb(0x35, 0x55, 0x81);
+        internal static readonly Color BorderFocus      = Color.FromArgb(0x5B, 0x7F, 0xA8);
+        internal static readonly Color Divider          = Color.FromArgb(0x24, 0x8F, 0xA8, 0xC4);
+        // CTAs
+        internal static readonly Color CtaFrom         = Color.FromArgb(0x1B, 0x2D, 0x4F);
+        internal static readonly Color CtaTo           = Color.FromArgb(0x5B, 0x7F, 0xA8);
+        internal static readonly Color CtaText         = Color.FromArgb(0xF1, 0xF6, 0xFC);
+        // Status
+        internal static readonly Color Success         = Color.FromArgb(0x4F, 0xB2, 0x86);
+        internal static readonly Color SuccessHi       = Color.FromArgb(0x3F, 0x99, 0x74);
+        internal static readonly Color Warn            = Color.FromArgb(0xE0, 0xA9, 0x5B);
+        internal static readonly Color Danger          = Color.FromArgb(0xD9, 0x6A, 0x7C);
+        internal static readonly Color DangerBg        = Color.FromArgb(0x21, 0xD9, 0x6A, 0x7C);
+        // Text
+        internal static readonly Color TextPrimary     = Color.FromArgb(0xE8, 0xEF, 0xF8);
+        internal static readonly Color TextSecondary   = Color.FromArgb(0x9C, 0xB1, 0xCC);
+        internal static readonly Color TextMuted       = Color.FromArgb(0x5F, 0x77, 0x99);
+        // Aliases para compatibilidad
+        internal static readonly Color AccentPrimary   = BrandSteel;
+        internal static readonly Color AccentSecondary = BrandSteelHi;
+        internal static readonly Color AccentGlow      = Color.FromArgb(0x38, 0x5B, 0x7F, 0xA8);
 
         // ─────────────────────────────────────────────────────────────────────
         // HeaderPanel
@@ -90,8 +112,8 @@ namespace Koovra.Cto.AutocadAddin.UI
                 {
                     double glowPhase = _getGlowPhase != null ? _getGlowPhase() : 0.0;
                     int tagAlpha = (int)(160 + 60 * Math.Sin(glowPhase * 1.5));
-                    using (var f = new WinFont("Courier New", 8f))
-                    using (var b = new SolidBrush(Color.FromArgb(tagAlpha, 0x5A, 0x6B, 0x85)))
+                    using (var f = new WinFont("Consolas", 8f))
+                    using (var b = new SolidBrush(Color.FromArgb(tagAlpha, TextMuted)))
                     {
                         var sz = g.MeasureString(_tag, f);
                         float tagRight = _showClose ? Width - 40 : Width - 10;
@@ -116,7 +138,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 }
 
                 // Divider bottom
-                using (var pen = new Pen(Color.FromArgb(0x22, 0x00, 0xBF, 0xFF)))
+                using (var pen = new Pen(Divider))
                     g.DrawLine(pen, 0, Height - 1, Width, Height - 1);
 
                 // Shimmer
@@ -292,8 +314,8 @@ namespace Koovra.Cto.AutocadAddin.UI
                 {
                     case BtnStyle.Primary:
                     {
-                        Color baseColor  = _bgOverride.HasValue      ? _bgOverride.Value      : AccentPrimary;
-                        Color hoverColor = _bgHoverOverride.HasValue ? _bgHoverOverride.Value  : AccentSecondary;
+                        Color baseColor  = _bgOverride.HasValue      ? _bgOverride.Value      : CtaFrom;
+                        Color hoverColor = _bgHoverOverride.HasValue ? _bgHoverOverride.Value  : CtaTo;
 
                         int r1 = baseColor.R,  g1 = baseColor.G,  b1 = baseColor.B;
                         int r2 = hoverColor.R, g2 = hoverColor.G, b2 = hoverColor.B;
@@ -302,20 +324,20 @@ namespace Koovra.Cto.AutocadAddin.UI
                         int bi = (int)(b1 + (b2 - b1) * _hoverProgress);
                         Color interpColor = Color.FromArgb(255, ri, gi, bi);
 
-                        Color fillEnd = _pressed ? Color.FromArgb(0x00, 0x99, 0xCC) : interpColor;
+                        Color fillEnd = _pressed ? BrandNavyHi : interpColor;
                         using (var grad = new LinearGradientBrush(rc, fillEnd, interpColor, LinearGradientMode.Horizontal))
                             g.FillRectangle(grad, rc);
-                        using (var pen = new Pen(baseColor))
+                        using (var pen = new Pen(BorderStrong))
                             g.DrawRectangle(pen, rc);
 
                         int glowAlpha = (int)(60 * _hoverProgress);
                         if (glowAlpha > 0)
                         {
-                            using (var glow = new Pen(Color.FromArgb(glowAlpha, baseColor), 4f))
+                            using (var glow = new Pen(Color.FromArgb(glowAlpha, BrandSteelHi), 4f))
                                 g.DrawRectangle(glow, new Rectangle(1, 1, Width - 3, Height - 3));
                         }
 
-                        using (var b = new SolidBrush(BgBase))
+                        using (var b = new SolidBrush(CtaText))
                         using (var f = new WinFont("Segoe UI", 9f, FontStyle.Bold))
                             DrawContent(g, f, b);
                         break;
@@ -344,7 +366,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                         int glowAlpha = (int)(60 * _hoverProgress);
                         if (glowAlpha > 0)
                         {
-                            using (var glow = new Pen(Color.FromArgb(glowAlpha, 0, 191, 255), 4f))
+                            using (var glow = new Pen(Color.FromArgb(glowAlpha, BrandSteelHi), 4f))
                                 g.DrawRectangle(glow, new Rectangle(1, 1, Width - 3, Height - 3));
                         }
 
@@ -356,13 +378,13 @@ namespace Koovra.Cto.AutocadAddin.UI
 
                     case BtnStyle.Danger:
                     {
-                        int targetA = 0x22, targetR = 0xFF, targetG = 0x55, targetB2 = 0x77;
+                        int targetA = DangerBg.A, targetR = Danger.R, targetG = Danger.G, targetB2 = Danger.B;
                         int ia = (int)(targetA * _hoverProgress);
                         int ir = (int)(targetR * _hoverProgress);
                         int ig = (int)(targetG * _hoverProgress);
                         int ib = (int)(targetB2 * _hoverProgress);
                         Color dbg = _pressed
-                            ? Color.FromArgb(0x22, 0xFF, 0x55, 0x77)
+                            ? DangerBg
                             : Color.FromArgb(ia, ir, ig, ib);
                         using (var brushDbg = new SolidBrush(dbg))
                             g.FillRectangle(brushDbg, rc);
@@ -378,7 +400,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                         int glowAlpha = (int)(60 * _hoverProgress);
                         if (glowAlpha > 0)
                         {
-                            using (var glow = new Pen(Color.FromArgb(glowAlpha, 0xFF, 0x55, 0x77), 4f))
+                            using (var glow = new Pen(Color.FromArgb(glowAlpha, Danger), 4f))
                                 g.DrawRectangle(glow, new Rectangle(1, 1, Width - 3, Height - 3));
                         }
 
@@ -463,6 +485,34 @@ namespace Koovra.Cto.AutocadAddin.UI
                     _hoverTimer = null;
                 }
                 base.Dispose(disposing);
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Helpers de rendering
+        // ─────────────────────────────────────────────────────────────────────
+
+        internal static void PaintHairlineStripe(Graphics g, int width)
+        {
+            var cb = new ColorBlend(3);
+            cb.Colors    = new[] { CtaFrom, BrandSteel, Color.Transparent };
+            cb.Positions = new[] { 0f, 0.5f, 1f };
+            using (var lgb = new LinearGradientBrush(
+                new PointF(0, 0), new PointF(width, 0),
+                CtaFrom, Color.Transparent))
+            {
+                lgb.InterpolationColors = cb;
+                g.FillRectangle(lgb, 0, 0, width, 2);
+            }
+        }
+
+        internal static Image LoadEmbeddedImage(string resourceName)
+        {
+            var asm = System.Reflection.Assembly.GetExecutingAssembly();
+            using (var s = asm.GetManifestResourceStream(resourceName))
+            {
+                if (s == null) return null;
+                return new Bitmap(s);
             }
         }
     }

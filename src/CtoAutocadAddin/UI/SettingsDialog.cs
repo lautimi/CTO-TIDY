@@ -176,7 +176,34 @@ namespace Koovra.Cto.AutocadAddin.UI
                 Dock   = DockStyle.Top,
                 Height = 72,
             };
+
+            var markImg = FuturisticTheme.LoadEmbeddedImage(
+                "Koovra.Cto.AutocadAddin.UI.Assets.vezeel-mark.png");
+            if (markImg != null)
+            {
+                var markPb = new PictureBox
+                {
+                    Image     = markImg,
+                    SizeMode  = PictureBoxSizeMode.Zoom,
+                    Height    = 30,
+                    Width     = 60,
+                    Location  = new Point(14, 21),
+                    BackColor = Color.Transparent,
+                };
+                _header.Controls.Add(markPb);
+            }
+
             Controls.Add(_header);
+
+            // ── Hairline brand stripe ────────────────────────────────────────
+            var hairline = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 2,
+                BackColor = Color.Transparent,
+            };
+            hairline.Paint += (s, e) => FuturisticTheme.PaintHairlineStripe(e.Graphics, hairline.Width);
+            Controls.Add(hairline);
 
             // ── Footer panel (Dock=Bottom, 64px) ─────────────────────────────
             var footer = new Panel
@@ -187,7 +214,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             };
             footer.Paint += (s, e) =>
             {
-                using (var pen = new Pen(Color.FromArgb(0x22, 0x00, 0xBF, 0xFF)))
+                using (var pen = new Pen(FuturisticTheme.Divider))
                     e.Graphics.DrawLine(pen, 0, 0, footer.Width, 0);
             };
             Controls.Add(footer);
@@ -225,7 +252,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             gripPanel.ResizeTarget = this;
 
             // ── Body content ─────────────────────────────────────────────────
-            int y = 80;
+            int y = 82; // 72px header + 2px hairline
 
             // ── LAYER DE POSTES section ───────────────────────────────────────
             var lblLayerSection = MakeSectionLabel("LAYER DE POSTES", 20, y);
