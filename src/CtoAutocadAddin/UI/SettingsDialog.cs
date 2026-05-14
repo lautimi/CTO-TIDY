@@ -33,12 +33,12 @@ namespace Koovra.Cto.AutocadAddin.UI
         private Label               _lblLayerSummary;
         private CboFuturista                    _cboNewCode;
         private ListBoxOwner                    _lstCodes;
-        private FuturisticTheme.BtnFuturista    _btnPick;
-        private FuturisticTheme.BtnFuturista    _btnAddCode;
-        private FuturisticTheme.BtnFuturista    _btnRemoveCode;
-        private FuturisticTheme.BtnFuturista    _btnDefaults;
-        private FuturisticTheme.BtnFuturista    _btnOk;
-        private FuturisticTheme.BtnFuturista    _btnCancel;
+        private FuturisticTheme.DialogButton    _btnPick;
+        private FuturisticTheme.DialogButton    _btnAddCode;
+        private FuturisticTheme.DialogButton    _btnRemoveCode;
+        private FuturisticTheme.DialogButton    _btnDefaults;
+        private FuturisticTheme.DialogButton    _btnOk;
+        private FuturisticTheme.DialogButton    _btnCancel;
 
         // drag header (kept for form-drag fallback outside header)
         private Point _dragStart;
@@ -56,12 +56,12 @@ namespace Koovra.Cto.AutocadAddin.UI
         public SettingsDialog()
         {
             FormBorderStyle = FormBorderStyle.None;
-            Size            = new Size(520, 480);
-            MinimumSize     = new Size(520, 480);
+            Size            = new Size(540, 480);
+            MinimumSize     = new Size(540, 480);
             StartPosition   = FormStartPosition.CenterScreen;
             BackColor       = BgBase;
             ForeColor       = TextPrimary;
-            Font            = new WinFont("Segoe UI", 9f);
+            Font            = new WinFont("Arial", 9f);
             DoubleBuffered  = true;
 
             // Rounded corners 4px
@@ -168,13 +168,13 @@ namespace Koovra.Cto.AutocadAddin.UI
             // ── Header panel (Dock=Top, 72px) ────────────────────────────────
             _header = new FuturisticTheme.HeaderPanel(
                 this, GetGlowPhase, GetShimmerX,
-                title:     "CONFIGURACIÓN CTO",
-                subtitle:  "Settings de sesión (no persisten)",
+                title:     null,
+                subtitle:  "Configuración · CTO_CONFIG",
                 tag:       "[ CTO_CONFIG ]",
                 showClose: true)
             {
                 Dock   = DockStyle.Top,
-                Height = 72,
+                Height = 68,
             };
             Controls.Add(_header);
 
@@ -187,26 +187,30 @@ namespace Koovra.Cto.AutocadAddin.UI
             };
             footer.Paint += (s, e) =>
             {
-                using (var pen = new Pen(Color.FromArgb(0x22, 0x00, 0xBF, 0xFF)))
-                    e.Graphics.DrawLine(pen, 0, 0, footer.Width, 0);
+                try
+                {
+                    using (var pen = new Pen(FuturisticTheme.Divider))
+                        e.Graphics.DrawLine(pen, 0, 0, footer.Width, 0);
+                }
+                catch { /* GDI+ transient; repaint will retry */ }
             };
             Controls.Add(footer);
 
-            _btnDefaults = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Secondary, FuturisticTheme.BtnIcon.Reset) { Text = "Defaults" };
+            _btnDefaults = new FuturisticTheme.DialogButton(FuturisticTheme.DialogBtnStyle.Secondary) { Text = "Defaults" };
             _btnDefaults.Size     = new Size(110, 32);
             _btnDefaults.Location = new Point(16, 16);
             _btnDefaults.Anchor   = AnchorStyles.Bottom | AnchorStyles.Left;
             _btnDefaults.Click   += OnDefaultsClick;
             footer.Controls.Add(_btnDefaults);
 
-            _btnCancel = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Secondary, FuturisticTheme.BtnIcon.None) { Text = "Cancelar" };
+            _btnCancel = new FuturisticTheme.DialogButton(FuturisticTheme.DialogBtnStyle.Secondary) { Text = "Cancelar" };
             _btnCancel.Size     = new Size(80, 32);
             _btnCancel.Location = new Point(footer.Width - 20 - 80, 16);
             _btnCancel.Anchor   = AnchorStyles.Bottom | AnchorStyles.Right;
             _btnCancel.Click   += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
             footer.Controls.Add(_btnCancel);
 
-            _btnOk = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Primary, FuturisticTheme.BtnIcon.None) { Text = "OK" };
+            _btnOk = new FuturisticTheme.DialogButton(FuturisticTheme.DialogBtnStyle.Primary) { Text = "OK" };
             _btnOk.Size     = new Size(70, 32);
             _btnOk.Location = new Point(footer.Width - 20 - 80 - 8 - 70, 16);
             _btnOk.Anchor   = AnchorStyles.Bottom | AnchorStyles.Right;
@@ -242,7 +246,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             _clbLayers.ItemCheck += OnLayerItemCheck;
             Controls.Add(_clbLayers);
 
-            _btnPick = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Primary, FuturisticTheme.BtnIcon.Pick) { Text = "Pick" };
+            _btnPick = new FuturisticTheme.DialogButton(FuturisticTheme.DialogBtnStyle.Primary) { Text = "Pick" };
             _btnPick.Size     = new Size(90, 30);
             _btnPick.Location = new Point(408, y);
             _btnPick.Anchor   = AnchorStyles.Top | AnchorStyles.Right;
@@ -257,7 +261,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 AutoSize  = false,
                 Size      = new Size(480, 18),
                 ForeColor = TextSecondary,
-                Font      = new WinFont("Segoe UI", 8f),
+                Font      = new WinFont("Arial", 8f),
                 Anchor    = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
             };
             Controls.Add(_lblLayerSummary);
@@ -275,7 +279,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 Location  = new Point(20, y),
                 AutoSize  = true,
                 ForeColor = TextSecondary,
-                Font      = new WinFont("Segoe UI", 9f),
+                Font      = new WinFont("Arial", 9f),
                 Anchor    = AnchorStyles.Top | AnchorStyles.Left,
             };
             Controls.Add(subLabel);
@@ -291,7 +295,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 _cboNewCode.Items.Add(c);
             Controls.Add(_cboNewCode);
 
-            _btnAddCode = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Primary, FuturisticTheme.BtnIcon.Add) { Text = "Agregar" };
+            _btnAddCode = new FuturisticTheme.DialogButton(FuturisticTheme.DialogBtnStyle.Primary) { Text = "Agregar" };
             _btnAddCode.Size     = new Size(90, 30);
             _btnAddCode.Location = new Point(408, y);
             _btnAddCode.Anchor   = AnchorStyles.Top | AnchorStyles.Right;
@@ -310,7 +314,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             Controls.Add(_lstCodes);
 
             // Fix 3: _btnRemoveCode below listbox, aligned right, Anchor=Bottom|Right
-            _btnRemoveCode = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Danger, FuturisticTheme.BtnIcon.Remove) { Text = "Quitar", Enabled = false };
+            _btnRemoveCode = new FuturisticTheme.DialogButton(FuturisticTheme.DialogBtnStyle.Danger) { Text = "Quitar", Enabled = false };
             _btnRemoveCode.Size     = new Size(90, 30);
             // Position relative to bottom of form (footer is 64px, so 64+30+8=102 from bottom)
             _btnRemoveCode.Location = new Point(406, Height - 64 - 30 - 8);
@@ -598,34 +602,26 @@ namespace Koovra.Cto.AutocadAddin.UI
 
         protected override void OnPaint(PaintEventArgs e)
         {
+            if (Width <= 0 || Height <= 0) return;
+            try
+            {
             base.OnPaint(e);
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            // Animated halo: 3 concentric layers
-            int glowAlpha = (int)(30 + 20 * Math.Sin(_glowPhase));
+            // Animated border glow: steel
+            int glowAlpha = (int)(25 + 15 * Math.Sin(_glowPhase));
 
-            using (var pen = new Pen(Color.FromArgb(glowAlpha, 0, 191, 255), 3f))
+            using (var pen = new Pen(Color.FromArgb(glowAlpha, FuturisticTheme.Steel), 3f))
                 g.DrawRectangle(pen, new Rectangle(-2, -2, Width + 3, Height + 3));
 
-            using (var pen = new Pen(Color.FromArgb(glowAlpha, 0, 191, 255), 2f))
+            using (var pen = new Pen(Color.FromArgb(glowAlpha, FuturisticTheme.Steel), 2f))
                 g.DrawRectangle(pen, new Rectangle(-1, -1, Width + 1, Height + 1));
 
-            using (var pen = new Pen(Color.FromArgb(glowAlpha, 0, 191, 255), 1f))
+            // Static border: BorderStrong
+            using (var pen = new Pen(FuturisticTheme.BorderStrong, 1f))
                 g.DrawRectangle(pen, new Rectangle(0, 0, Width - 1, Height - 1));
-
-            // Static glow fill
-            using (var pen = new Pen(AccentGlow, 4f))
-            {
-                var r = new Rectangle(2, 2, Width - 4, Height - 4);
-                g.DrawRectangle(pen, r);
-            }
-            // Border 1px accent-primary
-            using (var pen = new Pen(AccentPrimary, 1f))
-            {
-                var r = new Rectangle(0, 0, Width - 1, Height - 1);
-                g.DrawRectangle(pen, r);
-            }
+            } catch { /* GDI+ transient; repaint will retry */ }
         }
 
         // ── Dispose ───────────────────────────────────────────────────────────
@@ -680,6 +676,9 @@ namespace Koovra.Cto.AutocadAddin.UI
 
             protected override void OnPaint(PaintEventArgs e)
             {
+                if (Width <= 0 || Height <= 0) return;
+                try
+                {
                 var g = e.Graphics;
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 // Draw 3 diagonal lines as grip indicator
@@ -689,6 +688,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                     g.DrawLine(pen, 8, 14, 14, 8);
                     g.DrawLine(pen, 12, 14, 14, 12);
                 }
+                } catch { /* GDI+ transient; repaint will retry */ }
             }
 
             private void OnMD(object s, MouseEventArgs e)
@@ -728,26 +728,32 @@ namespace Koovra.Cto.AutocadAddin.UI
         {
             public SectionLabel(string text)
             {
-                Text      = text;
-                ForeColor = AccentPrimary;
-                Font      = new WinFont("Segoe UI", 10f, FontStyle.Bold);
+                Text      = text.ToUpperInvariant();
+                ForeColor = FuturisticTheme.Steel;
+                Font      = new WinFont("Arial", 9f, FontStyle.Bold);
                 AutoSize  = false;
                 Height    = 22;
             }
 
             protected override void OnPaint(PaintEventArgs e)
             {
-                var g = e.Graphics;
-                using (var b = new SolidBrush(AccentPrimary))
-                using (var f = new WinFont("Segoe UI", 10f, FontStyle.Bold))
+                if (Width <= 0 || Height <= 0) return;
+                try
                 {
-                    var sz = g.MeasureString(Text, f);
-                    g.DrawString(Text, f, b, new PointF(0, 2));
+                var g = e.Graphics;
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                using (var b = new SolidBrush(FuturisticTheme.Steel))
+                using (var f = new WinFont("Arial", 9f, FontStyle.Bold))
+                {
+                    string label = Text;
+                    var sz = g.MeasureString(label, f);
+                    g.DrawString(label, f, b, new PointF(0, 2));
 
                     int lineX = (int)sz.Width + 8;
-                    using (var pen = new Pen(Color.FromArgb(0x22, 0x00, 0xBF, 0xFF)))
+                    using (var pen = new Pen(FuturisticTheme.Divider))
                         g.DrawLine(pen, lineX, Height / 2, Width, Height / 2);
                 }
+                } catch { /* GDI+ transient; repaint will retry */ }
             }
         }
 
@@ -764,7 +770,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 DrawMode       = DrawMode.OwnerDrawFixed;
                 ItemHeight     = 24;
                 BorderStyle    = BorderStyle.None;
-                Font           = new WinFont("Segoe UI", 10f);
+                Font           = new WinFont("Arial", 10f);
                 DoubleBuffered = true;
                 CheckOnClick   = true;
             }
@@ -778,14 +784,14 @@ namespace Koovra.Cto.AutocadAddin.UI
                 bool ischecked = GetItemChecked(e.Index);
 
                 Color bg = selected
-                    ? Color.FromArgb(0x33, 0x00, 0xBF, 0xFF)
+                    ? Color.FromArgb(0x40, FuturisticTheme.Steel.R, FuturisticTheme.Steel.G, FuturisticTheme.Steel.B)
                     : BgPanel;
 
                 using (var b = new SolidBrush(bg))
                     g.FillRectangle(b, e.Bounds);
 
                 if (selected)
-                    using (var p = new Pen(AccentPrimary, 3f))
+                    using (var p = new Pen(FuturisticTheme.Steel, 3f))
                         g.DrawLine(p, e.Bounds.Left, e.Bounds.Top, e.Bounds.Left, e.Bounds.Bottom);
 
                 // Checkbox indicator
@@ -793,12 +799,12 @@ namespace Koovra.Cto.AutocadAddin.UI
                 int cby = e.Bounds.Y + (e.Bounds.Height - 12) / 2;
                 var cbRect = new Rectangle(cbx, cby, 12, 12);
 
-                using (var pen = new Pen(ischecked ? AccentPrimary : BorderSubtle))
+                using (var pen = new Pen(ischecked ? FuturisticTheme.Steel : BorderSubtle))
                     g.DrawRectangle(pen, cbRect);
 
                 if (ischecked)
                 {
-                    using (var pen = new Pen(AccentPrimary, 2f))
+                    using (var pen = new Pen(FuturisticTheme.Steel, 2f))
                     {
                         g.DrawLine(pen, cbx + 2, cby + 6, cbx + 5, cby + 9);
                         g.DrawLine(pen, cbx + 5, cby + 9, cbx + 10, cby + 3);
@@ -816,22 +822,30 @@ namespace Koovra.Cto.AutocadAddin.UI
 
                 Color textColor = ischecked ? TextPrimary : TextSecondary;
                 using (var b = new SolidBrush(textColor))
-                using (var f = new WinFont("Segoe UI", 10f))
+                using (var f = new WinFont("Arial", 10f))
                     g.DrawString(text, f, b, textRect, fmt);
             }
 
             protected override void OnPaint(PaintEventArgs e)
             {
+                if (Width <= 0 || Height <= 0) return;
+                try
+                {
                 base.OnPaint(e);
                 bool focused = ContainsFocus;
                 using (var pen = new Pen(focused ? BorderFocus : BorderSubtle))
                     e.Graphics.DrawRectangle(pen, new Rectangle(0, 0, Width - 1, Height - 1));
+                } catch { /* GDI+ transient; repaint will retry */ }
             }
 
             protected override void OnPaintBackground(PaintEventArgs e)
             {
-                using (var b = new SolidBrush(BgPanel))
-                    e.Graphics.FillRectangle(b, ClientRectangle);
+                try
+                {
+                    using (var b = new SolidBrush(BgPanel))
+                        e.Graphics.FillRectangle(b, ClientRectangle);
+                }
+                catch { /* GDI+ transient; repaint will retry */ }
             }
         }
 
@@ -849,7 +863,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 BackColor = BgPanel;
                 ForeColor = TextPrimary;
                 FlatStyle = FlatStyle.Flat;
-                Font      = new WinFont("Segoe UI", 10f);
+                Font      = new WinFont("Arial", 10f);
                 Height    = 30;
                 GotFocus  += (s, e) => { _focused = true;  Invalidate(); };
                 LostFocus += (s, e) => { _focused = false; Invalidate(); };
@@ -877,7 +891,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                         // Custom chevron
                         int cx = Width - 18;
                         int cy = Height / 2;
-                        using (var chevPen = new Pen(AccentPrimary, 1.5f))
+                        using (var chevPen = new Pen(FuturisticTheme.Steel, 1.5f))
                         {
                             g.DrawLine(chevPen, cx - 4, cy - 2, cx, cy + 2);
                             g.DrawLine(chevPen, cx, cy + 2, cx + 4, cy - 2);
@@ -889,7 +903,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                             && !string.IsNullOrEmpty(PlaceholderText))
                         {
                             using (var b = new SolidBrush(TextMuted))
-                            using (var f = new WinFont("Segoe UI", 9f, FontStyle.Italic))
+                            using (var f = new WinFont("Arial", 9f, FontStyle.Italic))
                                 g.DrawString(PlaceholderText, f, b, new PointF(4, 7));
                         }
                     }
@@ -915,7 +929,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 DrawMode       = DrawMode.OwnerDrawFixed;
                 ItemHeight     = 28;
                 BorderStyle    = BorderStyle.None;
-                Font           = new WinFont("Segoe UI", 10f);
+                Font           = new WinFont("Arial", 10f);
                 DoubleBuffered = true;
                 MouseMove     += OnMouseMoveList;
                 MouseLeave    += (s, e) => { _hoverIdx = -1; Invalidate(); };
@@ -940,8 +954,8 @@ namespace Koovra.Cto.AutocadAddin.UI
                 bool hover    = (e.Index == _hoverIdx);
                 bool flash    = (_flashIdx == e.Index && _flashOn);
 
-                Color bg = flash   ? AccentGlow
-                         : selected ? Color.FromArgb(0x33, 0x00, 0xBF, 0xFF)
+                Color bg = flash   ? FuturisticTheme.AccentGlow
+                         : selected ? Color.FromArgb(0x40, FuturisticTheme.Steel.R, FuturisticTheme.Steel.G, FuturisticTheme.Steel.B)
                          : hover   ? BgPanelHover
                          :           BgPanel;
 
@@ -949,7 +963,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                     g.FillRectangle(b, e.Bounds);
 
                 if (selected)
-                    using (var p = new Pen(AccentPrimary, 3f))
+                    using (var p = new Pen(FuturisticTheme.Steel, 3f))
                         g.DrawLine(p, e.Bounds.Left, e.Bounds.Top, e.Bounds.Left, e.Bounds.Bottom);
 
                 string text = Items[e.Index] as string ?? string.Empty;
@@ -957,7 +971,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 if (Items.Count == 0)
                 {
                     using (var b = new SolidBrush(TextMuted))
-                    using (var f = new WinFont("Segoe UI", 9f, FontStyle.Italic))
+                    using (var f = new WinFont("Arial", 9f, FontStyle.Italic))
                         g.DrawString("Sin códigos. Agregá uno arriba.", f, b,
                             new RectangleF(e.Bounds.X + 12, e.Bounds.Y + 6, e.Bounds.Width - 12, e.Bounds.Height));
                     return;
@@ -972,17 +986,20 @@ namespace Koovra.Cto.AutocadAddin.UI
                 };
 
                 using (var b = new SolidBrush(TextPrimary))
-                using (var f = new WinFont("Segoe UI", 10f))
+                using (var f = new WinFont("Arial", 10f))
                     g.DrawString(text, f, b, textRect, fmt);
             }
 
             protected override void OnPaint(PaintEventArgs e)
             {
+                if (Width <= 0 || Height <= 0) return;
+                try
+                {
                 base.OnPaint(e);
                 if (Items.Count == 0)
                 {
                     using (var b = new SolidBrush(TextMuted))
-                    using (var f = new WinFont("Segoe UI", 9f, FontStyle.Italic))
+                    using (var f = new WinFont("Arial", 9f, FontStyle.Italic))
                         e.Graphics.DrawString("Sin códigos. Agregá uno arriba.", f, b,
                             new RectangleF(12, 8, Width - 24, Height - 8));
                 }
@@ -990,6 +1007,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 bool focused = ContainsFocus;
                 using (var pen = new Pen(focused ? BorderFocus : BorderSubtle))
                     e.Graphics.DrawRectangle(pen, new Rectangle(0, 0, Width - 1, Height - 1));
+                } catch { /* GDI+ transient; repaint will retry */ }
             }
 
             public void FlashItem(int idx)

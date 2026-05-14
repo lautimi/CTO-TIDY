@@ -4,6 +4,7 @@ using WinFont    = System.Drawing.Font;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -25,7 +26,7 @@ namespace Koovra.Cto.AutocadAddin.UI
     public class CtoPanel : Form
     {
         private StepRow       _rowPostes, _rowAsociar, _rowComentarios, _rowCalcular, _rowDesplegar;
-        private FuturisticTheme.BtnFuturista _btnRunAll;
+        private FuturisticTheme.RunAllButton _btnRunAll;
         private RichTextBox   _log;
         private NumericUpDown _nudRadius;
 
@@ -218,7 +219,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                     AutoSize        = true,
                     LinkColor       = Color.FromArgb(0x00, 0xE5, 0xFF),
                     ActiveLinkColor = Color.White,
-                    Font            = new WinFont("Consolas", 7.5f),
+                    Font            = new WinFont("Courier New", 7.5f),
                     BackColor       = FuturisticTheme.BgBase,
                     ForeColor       = Color.FromArgb(0xFF, 0xC1, 0x07),
                     Tag             = w.HandleHex,
@@ -247,183 +248,23 @@ namespace Koovra.Cto.AutocadAddin.UI
             FormBorderStyle = FormBorderStyle.SizableToolWindow;
             StartPosition   = FormStartPosition.Manual;
             Location        = new Point(100, 100);
-            Size            = new Size(370, 600);
-            MinimumSize     = new Size(330, 500);
+            Size            = new Size(380, 620);
+            MinimumSize     = new Size(340, 520);
             BackColor       = FuturisticTheme.BgBase;
             ForeColor       = FuturisticTheme.TextPrimary;
-            Font            = new WinFont("Segoe UI", 9f);
+            Font            = new WinFont("Arial", 9f);
             DoubleBuffered  = true;
 
-            var layout = new TableLayoutPanel
-            {
-                Dock        = DockStyle.Fill,
-                ColumnCount = 1,
-                Padding     = new Padding(0),
-                BackColor   = Color.Transparent,
-            };
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-
-            void AddRow(int h) => layout.RowStyles.Add(new RowStyle(SizeType.Absolute, h));
-            AddRow(48);  // header
-            AddRow(44);  // paso 1
-            AddRow(44);  // paso 2
-            AddRow(44);  // paso 3
-            AddRow(44);  // paso 4
-            AddRow(44);  // paso 5
-            AddRow(36);  // radio
-            AddRow(34);  // inspeccionar
-            AddRow(34);  // configuración
-            AddRow(42);  // run all
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // log
-
-            // ── Header compacto ──────────────────────────────────────────────
-            var header = new FuturisticTheme.HeaderPanel(
-                this,
-                getGlowPhase: null,
-                getShimmerX:  null,
-                title:        "⚡  CTO — Workflow FTTH",
-                subtitle:     null,
-                tag:          null,
-                showClose:    false)
-            {
-                Dock   = DockStyle.Fill,
-                Height = 48,
-            };
-            layout.Controls.Add(header, 0, 0);
-
-            // ── Pasos ────────────────────────────────────────────────────────
-            _rowPostes      = new StepRow("1. Seleccionar postes");
-            _rowAsociar     = new StepRow("2. Asociar postes");
-            _rowComentarios = new StepRow("3. Leer comentarios (HP)");
-            _rowCalcular    = new StepRow("4. Calcular CTOs");
-            _rowDesplegar   = new StepRow("5. Desplegar CTOs");
-
-            _rowPostes.Button.Click      += (s, e) => RunStep(_rowPostes,      StepSeleccionar);
-            _rowAsociar.Button.Click     += (s, e) => RunStep(_rowAsociar,     StepAsociar);
-            _rowComentarios.Button.Click += (s, e) => RunStep(_rowComentarios, StepComentarios);
-            _rowCalcular.Button.Click    += (s, e) => RunStep(_rowCalcular,    StepCalcular);
-            _rowDesplegar.Button.Click   += (s, e) => RunStep(_rowDesplegar,   StepDesplegar);
-
-            layout.Controls.Add(_rowPostes,      0, 1);
-            layout.Controls.Add(_rowAsociar,     0, 2);
-            layout.Controls.Add(_rowComentarios, 0, 3);
-            layout.Controls.Add(_rowCalcular,    0, 4);
-            layout.Controls.Add(_rowDesplegar,   0, 5);
-
-            // ── Radio buffer ─────────────────────────────────────────────────
-            var radioRow = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                BackColor = FuturisticTheme.BgPanel,
-                Padding   = new Padding(8, 4, 8, 4),
-            };
-            radioRow.Paint += (s, e) =>
-            {
-                using (var pen = new Pen(FuturisticTheme.BorderSubtle))
-                    e.Graphics.DrawLine(pen, 0, radioRow.Height - 1, radioRow.Width, radioRow.Height - 1);
-            };
-
-            var lblRadius = new Label
-            {
-                Text      = "Radio buffer (m):",
-                ForeColor = FuturisticTheme.TextSecondary,
-                AutoSize  = true,
-                Location  = new Point(8, 9),
-                Font      = new WinFont("Segoe UI", 8.5f),
-            };
-
-            _nudRadius = new NumericUpDown
-            {
-                Minimum       = 1,
-                Maximum       = 50,
-                Value         = (decimal)AddinSettings.Current.TextBufferRadius,
-                DecimalPlaces = 1,
-                Increment     = 0.5m,
-                Width         = 60,
-                BackColor     = FuturisticTheme.BgPanel,
-                ForeColor     = FuturisticTheme.TextPrimary,
-                BorderStyle   = BorderStyle.None,
-                Location      = new Point(140, 6),
-                Font          = new WinFont("Segoe UI", 8.5f),
-            };
-            _nudRadius.Paint += (s, e) =>
-            {
-                using (var pen = new Pen(FuturisticTheme.BorderSubtle))
-                    e.Graphics.DrawRectangle(pen, new Rectangle(0, 0, _nudRadius.Width - 1, _nudRadius.Height - 1));
-            };
-
-            radioRow.Controls.Add(lblRadius);
-            radioRow.Controls.Add(_nudRadius);
-            layout.Controls.Add(radioRow, 0, 6);
-
-            // ── Inspeccionar ─────────────────────────────────────────────────
-            var btnInspect = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Secondary)
-            {
-                Text   = "Inspeccionar poste (diagnóstico)",
-                Dock   = DockStyle.Fill,
-                Margin = new Padding(8, 4, 8, 2),
-                Font   = new WinFont("Segoe UI", 8.5f, FontStyle.Bold),
-            };
-            btnInspect.Click += (s, e) =>
-            {
-                var doc = AcApp.DocumentManager.MdiActiveDocument;
-                doc?.SendStringToExecute("CTO_INSPECCIONAR ", true, false, false);
-            };
-            layout.Controls.Add(btnInspect, 0, 7);
-
-            // ── Configuración ────────────────────────────────────────────────
-            var btnConfig = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Secondary)
-            {
-                Text   = "Configuración",
-                Dock   = DockStyle.Fill,
-                Margin = new Padding(8, 2, 8, 4),
-                Font   = new WinFont("Segoe UI", 8.5f, FontStyle.Bold),
-            };
-            btnConfig.Click += (s, e) =>
-            {
-                var doc = AcApp.DocumentManager.MdiActiveDocument;
-                doc?.SendStringToExecute("CTO_CONFIG ", true, false, false);
-            };
-            layout.Controls.Add(btnConfig, 0, 8);
-
-            // ── Ejecutar Todo ────────────────────────────────────────────────
-            _btnRunAll = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Primary)
-            {
-                Text   = "EJECUTAR TODO  (pasos 1 → 5)",
-                Dock   = DockStyle.Fill,
-                Height = 42,
-                Margin = new Padding(8, 4, 8, 4),
-                Font   = new WinFont("Segoe UI", 9f, FontStyle.Bold),
-            };
-            _btnRunAll.SetColorOverride(
-                Color.FromArgb(0x00, 0xC8, 0x96),
-                Color.FromArgb(0x00, 0xA8, 0x7D));
-            _btnRunAll.Click += (s, e) => RunAll();
-            layout.Controls.Add(_btnRunAll, 0, 9);
-
-            // ── Log ──────────────────────────────────────────────────────────
-            _log = new RichTextBox
-            {
-                Dock        = DockStyle.Fill,
-                BackColor   = FuturisticTheme.BgBase,
-                ForeColor   = FuturisticTheme.TextSecondary,
-                Font        = new WinFont("Consolas", 8f),
-                ReadOnly    = true,
-                ScrollBars  = RichTextBoxScrollBars.Vertical,
-                BorderStyle = BorderStyle.None,
-            };
-            layout.Controls.Add(_log, 0, 10);
-
-            // ── Warnings panel (postes en esquina) ──────────────────────────
+            // ── Warnings panel (postes en esquina) — Dock=Bottom, añadir primero ──
             _warningHeader = new Label
             {
                 Text      = "",
-                ForeColor = Color.FromArgb(0xFF, 0xC1, 0x07), // amarillo warning
+                ForeColor = Color.FromArgb(0xFF, 0xC1, 0x07),
                 BackColor = FuturisticTheme.BgPanel,
                 Dock      = DockStyle.Top,
                 Height    = 24,
                 Padding   = new Padding(8, 4, 0, 0),
-                Font      = new WinFont("Segoe UI", 8.5f, FontStyle.Bold),
+                Font      = new WinFont("Arial", 8.5f, FontStyle.Bold),
             };
 
             _warningList = new FlowLayoutPanel
@@ -445,8 +286,223 @@ namespace Koovra.Cto.AutocadAddin.UI
             _warningsSection.Controls.Add(_warningList);
             _warningsSection.Controls.Add(_warningHeader);
 
-            Controls.Add(layout);
+            // ── Log (Dock=Fill) — añadir antes que los Dock=Top para que quede al centro ──
+            _log = new RichTextBox
+            {
+                Dock        = DockStyle.Fill,
+                BackColor   = FuturisticTheme.BgBase,
+                ForeColor   = FuturisticTheme.TextSecondary,
+                Font        = new WinFont("Courier New", 8f),
+                ReadOnly    = true,
+                ScrollBars  = RichTextBoxScrollBars.Vertical,
+                BorderStyle = BorderStyle.None,
+            };
+
+            // ── RunAll (Dock=Top) ─────────────────────────────────────────────
+            _btnRunAll = new FuturisticTheme.RunAllButton
+            {
+                Height = 50,
+            };
+            _btnRunAll.Click += (s, e) => RunAll();
+
+            var pRunAll = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 74,
+                BackColor = FuturisticTheme.BgBase,
+            };
+            pRunAll.Controls.Add(_btnRunAll);
+            _btnRunAll.Dock = DockStyle.None;
+            _btnRunAll.Size = new Size(pRunAll.Width - 16, 50);
+            _btnRunAll.Location = new Point(8, 12);
+            _btnRunAll.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            pRunAll.Resize += (s, e) =>
+            {
+                _btnRunAll.Size     = new Size(pRunAll.Width - 16, 50);
+                _btnRunAll.Location = new Point(8, 12);
+            };
+
+            // ── Configuración (Dock=Top) ─────────────────────────────────────
+            var btnConfig = new FuturisticTheme.SecondaryButton
+            {
+                Text = "Configuración",
+                Font = new WinFont("Arial", 8.5f, FontStyle.Bold),
+            };
+            btnConfig.Click += (s, e) =>
+            {
+                var doc = AcApp.DocumentManager.MdiActiveDocument;
+                doc?.SendStringToExecute("CTO_CONFIG ", true, false, false);
+            };
+
+            var pConfig = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 34,
+                BackColor = FuturisticTheme.BgBase,
+            };
+            pConfig.Controls.Add(btnConfig);
+            btnConfig.Dock = DockStyle.None;
+            btnConfig.Size = new Size(pConfig.Width - 16, 26);
+            btnConfig.Location = new Point(8, 4);
+            btnConfig.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            pConfig.Resize += (s, e) =>
+            {
+                btnConfig.Size     = new Size(pConfig.Width - 16, 26);
+                btnConfig.Location = new Point(8, 4);
+            };
+
+            // ── Inspeccionar (Dock=Top) ──────────────────────────────────────
+            var btnInspect = new FuturisticTheme.SecondaryButton
+            {
+                Text = "Inspeccionar poste (diagnóstico)",
+                Font = new WinFont("Arial", 8.5f, FontStyle.Bold),
+            };
+            btnInspect.Click += (s, e) =>
+            {
+                var doc = AcApp.DocumentManager.MdiActiveDocument;
+                doc?.SendStringToExecute("CTO_INSPECCIONAR ", true, false, false);
+            };
+
+            var pInspect = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 40,
+                BackColor = FuturisticTheme.BgBase,
+            };
+            pInspect.Controls.Add(btnInspect);
+            btnInspect.Dock = DockStyle.None;
+            btnInspect.Size = new Size(pInspect.Width - 16, 28);
+            btnInspect.Location = new Point(8, 6);
+            btnInspect.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            pInspect.Resize += (s, e) =>
+            {
+                btnInspect.Size     = new Size(pInspect.Width - 16, 28);
+                btnInspect.Location = new Point(8, 6);
+            };
+
+            // ── Radio buffer (Dock=Top) ──────────────────────────────────────
+            var pRadius = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 42,
+                BackColor = FuturisticTheme.BgPanel,
+            };
+            pRadius.Paint += (s, e) =>
+            {
+                try
+                {
+                    using (var pen = new Pen(FuturisticTheme.BorderSubtle))
+                        e.Graphics.DrawLine(pen, 0, pRadius.Height - 1, pRadius.Width, pRadius.Height - 1);
+                }
+                catch { }
+            };
+
+            var lblRadius = new Label
+            {
+                Text      = "Radio buffer (m):",
+                ForeColor = FuturisticTheme.TextSecondary,
+                AutoSize  = true,
+                Location  = new Point(14, 13),
+                Font      = new WinFont("Arial", 8.5f),
+            };
+
+            _nudRadius = new NumericUpDown
+            {
+                Minimum       = 1,
+                Maximum       = 50,
+                Value         = (decimal)AddinSettings.Current.TextBufferRadius,
+                DecimalPlaces = 1,
+                Increment     = 0.5m,
+                Width         = 60,
+                BackColor     = FuturisticTheme.BgPanel,
+                ForeColor     = FuturisticTheme.TextPrimary,
+                BorderStyle   = BorderStyle.None,
+                Location      = new Point(144, 10),
+                Font          = new WinFont("Arial", 8.5f),
+            };
+            _nudRadius.Paint += (s, e) =>
+            {
+                try
+                {
+                    using (var pen = new Pen(FuturisticTheme.BorderSubtle))
+                        e.Graphics.DrawRectangle(pen, new Rectangle(0, 0, _nudRadius.Width - 1, _nudRadius.Height - 1));
+                }
+                catch { }
+            };
+
+            pRadius.Controls.Add(lblRadius);
+            pRadius.Controls.Add(_nudRadius);
+
+            // ── Step rows (Dock=Top) ─────────────────────────────────────────
+            _rowPostes      = new StepRow("1. Seleccionar postes");
+            _rowAsociar     = new StepRow("2. Asociar postes");
+            _rowComentarios = new StepRow("3. Leer comentarios (HP)");
+            _rowCalcular    = new StepRow("4. Calcular CTOs");
+            _rowDesplegar   = new StepRow("5. Desplegar CTOs");
+
+            _rowPostes.Button.Click      += (s, e) => RunStep(_rowPostes,      StepSeleccionar);
+            _rowAsociar.Button.Click     += (s, e) => RunStep(_rowAsociar,     StepAsociar);
+            _rowComentarios.Button.Click += (s, e) => RunStep(_rowComentarios, StepComentarios);
+            _rowCalcular.Button.Click    += (s, e) => RunStep(_rowCalcular,    StepCalcular);
+            _rowDesplegar.Button.Click   += (s, e) => RunStep(_rowDesplegar,   StepDesplegar);
+
+            // ── Stripe (Dock=Top) ────────────────────────────────────────────
+            var pStripe = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 2,
+                BackColor = FuturisticTheme.BgBase,
+            };
+            pStripe.Paint += (s, e) =>
+            {
+                try
+                {
+                    using (var lgb = new System.Drawing.Drawing2D.LinearGradientBrush(
+                        new Rectangle(0, 0, pStripe.Width, 2),
+                        FuturisticTheme.Navy, Color.Transparent,
+                        System.Drawing.Drawing2D.LinearGradientMode.Horizontal))
+                    {
+                        var cb = new System.Drawing.Drawing2D.ColorBlend();
+                        cb.Colors    = new Color[] { FuturisticTheme.Navy, FuturisticTheme.Steel, Color.Transparent };
+                        cb.Positions = new float[] { 0f, 0.55f, 1f };
+                        lgb.InterpolationColors = cb;
+                        e.Graphics.FillRectangle(lgb, 0, 0, pStripe.Width, 2);
+                    }
+                }
+                catch { }
+            };
+
+            // ── Header (Dock=Top) ────────────────────────────────────────────
+            var header = new FuturisticTheme.HeaderPanel(
+                this,
+                getGlowPhase: null,
+                getShimmerX:  null,
+                title:        null,
+                subtitle:     "v3.0 · AutoCAD Add-in",
+                tag:          "[ VEZEEL · CTO ]",
+                showClose:    false,
+                logoHeight:   26)
+            {
+                Dock   = DockStyle.Top,
+                Height = 68,
+            };
+
+            // ── Agregar en orden INVERSO (último primero, primero último) ─────
+            // Dock=Fill se agrega primero, luego Dock=Bottom, luego Dock=Top de abajo a arriba
+            Controls.Add(_log);
             Controls.Add(_warningsSection);
+            Controls.Add(pRunAll);
+            Controls.Add(pConfig);
+            Controls.Add(pInspect);
+            Controls.Add(pRadius);
+            Controls.Add(_rowDesplegar);
+            Controls.Add(_rowCalcular);
+            Controls.Add(_rowComentarios);
+            Controls.Add(_rowAsociar);
+            Controls.Add(_rowPostes);
+            Controls.Add(pStripe);
+            Controls.Add(header);
+
             AppendLog("Panel listo. Ejecutá los pasos en orden o usá 'Ejecutar Todo'.", LogLevel.Info);
         }
 
@@ -1016,10 +1072,10 @@ namespace Koovra.Cto.AutocadAddin.UI
             Color c; string pfx;
             switch (level)
             {
-                case LogLevel.Ok:    c = Color.FromArgb(0x00, 0xC8, 0x96); pfx = "✓ "; break;
-                case LogLevel.Warn:  c = Color.FromArgb(0xFF, 0xB3, 0x47); pfx = "⚠ "; break;
-                case LogLevel.Error: c = Color.FromArgb(0xFF, 0x55, 0x77); pfx = "✗ "; break;
-                default:             c = FuturisticTheme.TextSecondary;     pfx = "  "; break;
+                case LogLevel.Ok:    c = FuturisticTheme.Success; pfx = "✓ "; break;
+                case LogLevel.Warn:  c = FuturisticTheme.Warning; pfx = "⚠ "; break;
+                case LogLevel.Error: c = FuturisticTheme.Error;   pfx = "✗ "; break;
+                default:             c = FuturisticTheme.TextSecondary; pfx = "  "; break;
             }
             _log.SelectionStart  = _log.TextLength;
             _log.SelectionColor  = FuturisticTheme.TextMuted;
@@ -1057,46 +1113,52 @@ namespace Koovra.Cto.AutocadAddin.UI
 
         private class StepRow : Panel
         {
-            public FuturisticTheme.BtnFuturista Button { get; }
+            public FuturisticTheme.ChevronButton Button { get; }
             private readonly DotIndicator _dot;
             private readonly Label        _info;
 
             public StepRow(string label)
             {
-                Dock      = DockStyle.Fill;
+                Dock      = DockStyle.Top;
                 BackColor = FuturisticTheme.BgPanel;
-                Margin    = new Padding(0);
-                Height    = 44;
+                Height    = 48;
 
-                _dot = new DotIndicator { Location = new Point(8, 18) };
+                _dot = new DotIndicator
+                {
+                    Size     = new Size(8, 8),
+                    Location = new Point(14, 20),
+                };
 
-                Button = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Primary)
+                Button = new FuturisticTheme.ChevronButton
                 {
                     Text     = label,
-                    Size     = new Size(196, 28),
-                    Location = new Point(24, 8),
-                    Font     = new WinFont("Segoe UI", 8.5f, FontStyle.Bold),
+                    Size     = new Size(204, 30),
+                    Location = new Point(30, 9),
+                    Font     = new WinFont("Arial", 8.5f, FontStyle.Bold),
                 };
 
                 _info = new Label
                 {
                     Text      = "—",
                     ForeColor = FuturisticTheme.TextSecondary,
-                    Size      = new Size(120, 28),
-                    Location  = new Point(226, 8),
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    Font      = new WinFont("Consolas", 7.5f),
+                    Size      = new Size(130, 30),
+                    Location  = new Point(240, 9),
+                    TextAlign = ContentAlignment.MiddleRight,
+                    Font      = new WinFont("Courier New", 8f),
                 };
 
                 Controls.Add(_dot);
                 Controls.Add(Button);
                 Controls.Add(_info);
 
-                // Borde bottom
                 Paint += (s, e) =>
                 {
-                    using (var pen = new Pen(FuturisticTheme.BorderSubtle))
-                        e.Graphics.DrawLine(pen, 0, Height - 1, Width, Height - 1);
+                    try
+                    {
+                        using (var pen = new Pen(FuturisticTheme.BorderSubtle))
+                            e.Graphics.DrawLine(pen, 0, Height - 1, Width, Height - 1);
+                    }
+                    catch { }
                 };
             }
 
@@ -1122,7 +1184,7 @@ namespace Koovra.Cto.AutocadAddin.UI
 
             public DotIndicator()
             {
-                Size          = new Size(8, 8);
+                Size           = new Size(10, 10);
                 DoubleBuffered = true;
             }
 
@@ -1145,17 +1207,53 @@ namespace Koovra.Cto.AutocadAddin.UI
 
             protected override void OnPaint(PaintEventArgs e)
             {
-                Color baseColor;
+                if (Width <= 0 || Height <= 0) return;
+                try
+                {
+
+                var g = e.Graphics;
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+                Color dotColor;
+                int   glowAlpha = 0;
+                Color glowColor = Color.Transparent;
+
                 switch (Status)
                 {
-                    case StepStatus.Running: baseColor = Color.FromArgb(_pulseAlpha, 0x00, 0xBF, 0xFF); break;
-                    case StepStatus.Ok:      baseColor = Color.FromArgb(0x00, 0xC8, 0x96);               break;
-                    case StepStatus.Warning: baseColor = Color.FromArgb(0xFF, 0xB3, 0x47);               break;
-                    case StepStatus.Error:   baseColor = Color.FromArgb(0xFF, 0x55, 0x77);               break;
-                    default:                 baseColor = Color.FromArgb(0x5A, 0x6B, 0x85);               break;
+                    case StepStatus.Running:
+                        dotColor  = Color.FromArgb(_pulseAlpha, FuturisticTheme.Info);
+                        glowAlpha = (int)(128 * (_pulseAlpha / 255f));
+                        glowColor = FuturisticTheme.Info;
+                        break;
+                    case StepStatus.Ok:
+                        dotColor  = FuturisticTheme.Success;
+                        glowAlpha = 90;
+                        glowColor = FuturisticTheme.Success;
+                        break;
+                    case StepStatus.Warning:
+                        dotColor  = FuturisticTheme.Warning;
+                        break;
+                    case StepStatus.Error:
+                        dotColor  = FuturisticTheme.Error;
+                        break;
+                    default:
+                        dotColor  = Color.FromArgb(128, FuturisticTheme.TextMuted);
+                        break;
                 }
-                using (var b = new SolidBrush(baseColor))
-                    e.Graphics.FillRectangle(b, new Rectangle(0, 0, Width, Height));
+
+                // Glow halo
+                if (glowAlpha > 0)
+                {
+                    using (var b = new SolidBrush(Color.FromArgb(glowAlpha / 2, glowColor)))
+                        g.FillEllipse(b, -3, -3, Width + 6, Height + 6);
+                    using (var b = new SolidBrush(Color.FromArgb(glowAlpha / 3, glowColor)))
+                        g.FillEllipse(b, -5, -5, Width + 10, Height + 10);
+                }
+
+                using (var b = new SolidBrush(dotColor))
+                    g.FillEllipse(b, 0, 0, Width, Height);
+
+                } catch { /* GDI+ transient; repaint will retry */ }
             }
 
             protected override void OnPaintBackground(PaintEventArgs e) { /* suppress */ }
