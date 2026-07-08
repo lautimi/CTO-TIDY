@@ -46,6 +46,17 @@ namespace Koovra.Cto.AutocadAddin.UI
         internal static readonly Color BorderFocus     = Steel;
         internal static readonly Color Danger          = Error;
 
+        // ── Tipografía ───────────────────────────────────────────────────────
+        private static readonly bool _openSansAvailable = IsFontInstalled("Open Sans");
+
+        private static bool IsFontInstalled(string name)
+        {
+            using (var testFont = new WinFont(name, 10f))
+                return string.Equals(testFont.Name, name, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string PrimaryFontFamily => _openSansAvailable ? "Open Sans" : "Arial";
+
         // ── Logo (lazy-loaded) ───────────────────────────────────────────────
         private static Image _logoWhite;
         private static bool  _logoLoaded;
@@ -218,24 +229,10 @@ namespace Koovra.Cto.AutocadAddin.UI
                         ia.SetColorMatrix(new ColorMatrix { Matrix33 = 0.92f });
                         g.DrawImage(logo, logoRect, 0, 0, logo.Width, logo.Height, GraphicsUnit.Pixel, ia);
                     }
-
-                    // product text below logo
-                    int metaY = logoY + logoH + 5;
-                    using (var f = new WinFont("Arial", 10f, FontStyle.Bold))
-                    using (var b = new SolidBrush(Steel))
-                        g.DrawString("CTO · Workflow FTTH", f, b, new PointF(14, metaY));
-
-                    metaY += 16;
-                    if (!string.IsNullOrEmpty(_subtitle))
-                    {
-                        using (var f = new WinFont("Courier New", 10f))
-                        using (var b = new SolidBrush(TextMuted))
-                            g.DrawString(_subtitle, f, b, new PointF(14, metaY));
-                    }
                 }
                 else
                 {
-                    using (var f = new WinFont("Arial", 11f, FontStyle.Bold))
+                    using (var f = new WinFont(PrimaryFontFamily, 11f, FontStyle.Bold))
                     using (var b = new SolidBrush(TextPrimary))
                         g.DrawString("VEZEEL GROUP", f, b, new PointF(14, logoY));
                 }
@@ -258,7 +255,7 @@ namespace Koovra.Cto.AutocadAddin.UI
 
                 if (_showClose)
                 {
-                    using (var f = new WinFont("Arial", 11f))
+                    using (var f = new WinFont(PrimaryFontFamily, 11f))
                     using (var b = new SolidBrush(TextMuted))
                         g.DrawString("×", f, b, new PointF(Width - 28, 8));
                 }
@@ -307,6 +304,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             private float _hoverProgress = 0f;
             private Timer _hoverTimer;
             private bool  _pressed;
+            private GraphicsPath _regionPath;
 
             public ChevronButton()
             {
@@ -316,7 +314,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 Cursor    = Cursors.Hand;
                 ForeColor = TextPrimary;
                 BackColor = BgPanel;
-                Font      = new WinFont("Arial", 8.5f, FontStyle.Bold);
+                Font      = new WinFont(PrimaryFontFamily, 8.5f, FontStyle.Bold);
 
                 MouseEnter += (s, e) => StartHover(true);
                 MouseLeave += (s, e) => StartHover(false);
@@ -357,8 +355,11 @@ namespace Koovra.Cto.AutocadAddin.UI
                 base.OnResize(e);
                 if (Width > 4 && Height > 4)
                 {
-                    using (var path = MakeChevronPath(Width - 1, Height - 1, 8))
-                        this.Region = new Region(path);
+                    var newPath = MakeChevronPath(Width - 1, Height - 1, 8);
+                    this.Region?.Dispose();
+                    this.Region = new Region(newPath);
+                    _regionPath?.Dispose();
+                    _regionPath = newPath;
                 }
             }
 
@@ -426,11 +427,16 @@ namespace Koovra.Cto.AutocadAddin.UI
 
             protected override void Dispose(bool disposing)
             {
-                if (disposing && _hoverTimer != null)
+                if (disposing)
                 {
-                    _hoverTimer.Stop();
-                    _hoverTimer.Dispose();
-                    _hoverTimer = null;
+                    if (_hoverTimer != null)
+                    {
+                        _hoverTimer.Stop();
+                        _hoverTimer.Dispose();
+                        _hoverTimer = null;
+                    }
+                    _regionPath?.Dispose();
+                    this.Region?.Dispose();
                 }
                 base.Dispose(disposing);
             }
@@ -445,6 +451,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             private float _hoverProgress = 0f;
             private Timer _hoverTimer;
             private bool  _pressed;
+            private GraphicsPath _regionPath;
 
             public SecondaryButton()
             {
@@ -454,7 +461,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 Cursor    = Cursors.Hand;
                 ForeColor = TextPrimary;
                 BackColor = BgPanel;
-                Font      = new WinFont("Arial", 9f, FontStyle.Bold);
+                Font      = new WinFont(PrimaryFontFamily, 9f, FontStyle.Bold);
 
                 MouseEnter += (s, e) => StartHover(true);
                 MouseLeave += (s, e) => StartHover(false);
@@ -495,8 +502,11 @@ namespace Koovra.Cto.AutocadAddin.UI
                 base.OnResize(e);
                 if (Width > 4 && Height > 4)
                 {
-                    using (var path = MakeCornerCutPath(Width - 1, Height - 1, 10))
-                        this.Region = new Region(path);
+                    var newPath = MakeCornerCutPath(Width - 1, Height - 1, 10);
+                    this.Region?.Dispose();
+                    this.Region = new Region(newPath);
+                    _regionPath?.Dispose();
+                    _regionPath = newPath;
                 }
             }
 
@@ -548,11 +558,16 @@ namespace Koovra.Cto.AutocadAddin.UI
 
             protected override void Dispose(bool disposing)
             {
-                if (disposing && _hoverTimer != null)
+                if (disposing)
                 {
-                    _hoverTimer.Stop();
-                    _hoverTimer.Dispose();
-                    _hoverTimer = null;
+                    if (_hoverTimer != null)
+                    {
+                        _hoverTimer.Stop();
+                        _hoverTimer.Dispose();
+                        _hoverTimer = null;
+                    }
+                    _regionPath?.Dispose();
+                    this.Region?.Dispose();
                 }
                 base.Dispose(disposing);
             }
@@ -569,6 +584,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             private Timer _shimmerTimer;
             private float _shimmerX = -200f;
             private bool  _pressed;
+            private GraphicsPath _regionPath;
 
             public RunAllButton()
             {
@@ -578,7 +594,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 Cursor    = Cursors.Hand;
                 ForeColor = TextPrimary;
                 BackColor = BgBase;
-                Font      = new WinFont("Arial", 10f, FontStyle.Bold);
+                Font      = new WinFont(PrimaryFontFamily, 10f, FontStyle.Bold);
 
                 MouseEnter += (s, e) => { StartHover(true);  StartShimmer(); };
                 MouseLeave += (s, e) => StartHover(false);
@@ -639,8 +655,11 @@ namespace Koovra.Cto.AutocadAddin.UI
                 base.OnResize(e);
                 if (Width > 4 && Height > 4)
                 {
-                    using (var path = MakeChevronPath(Width - 1, Height - 1, 16))
-                        this.Region = new Region(path);
+                    var newPath = MakeChevronPath(Width - 1, Height - 1, 16);
+                    this.Region?.Dispose();
+                    this.Region = new Region(newPath);
+                    _regionPath?.Dispose();
+                    _regionPath = newPath;
                 }
             }
 
@@ -697,17 +716,16 @@ namespace Koovra.Cto.AutocadAddin.UI
                         g.FillRectangle(b, 0, 0, w + 1, h + 1);
                 }
 
-                // V-mark left
+                // V-mark left — dos trazos con opacidades 45%/100%
                 int cx = 28;
                 int cy = h / 2;
-                using (var pen = new Pen(Color.FromArgb(180, 255, 255, 255), 2f))
-                {
-                    g.DrawLine(pen, cx - 5, cy - 3, cx, cy + 3);
-                    g.DrawLine(pen, cx, cy + 3, cx + 8, cy - 5);
-                }
+                using (var penFaint = new Pen(Color.FromArgb(115, 255, 255, 255), 2f))
+                    g.DrawLine(penFaint, cx - 5, cy - 3, cx, cy + 3);
+                using (var penSolid = new Pen(Color.FromArgb(255, 255, 255, 255), 2f))
+                    g.DrawLine(penSolid, cx, cy + 3, cx + 8, cy - 5);
 
                 // Main text "EJECUTAR TODO" centered
-                using (var mainFont = new WinFont("Arial", 10f, FontStyle.Bold))
+                using (var mainFont = new WinFont(PrimaryFontFamily, 10f, FontStyle.Bold))
                 using (var b = new SolidBrush(_pressed ? Color.FromArgb(0xCC, 0xE0, 0xF0) : TextPrimary))
                 {
                     var sf = new StringFormat
@@ -720,7 +738,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 }
 
                 // Sub text "PASOS 1 → 5" steel-muted right area
-                using (var subFont = new WinFont("Arial", 8.5f))
+                using (var subFont = new WinFont(PrimaryFontFamily, 8.5f))
                 using (var b = new SolidBrush(Color.FromArgb(128, 255, 255, 255)))
                 {
                     var sf = new StringFormat
@@ -751,6 +769,8 @@ namespace Koovra.Cto.AutocadAddin.UI
                         _shimmerTimer.Dispose();
                         _shimmerTimer = null;
                     }
+                    _regionPath?.Dispose();
+                    this.Region?.Dispose();
                 }
                 base.Dispose(disposing);
             }
@@ -772,6 +792,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             private float _hoverProgress = 0f;
             private Timer _hoverTimer;
             private bool  _pressed;
+            private GraphicsPath _regionPath;
 
             public DialogButton(DialogBtnStyle style = DialogBtnStyle.Primary)
             {
@@ -782,12 +803,13 @@ namespace Koovra.Cto.AutocadAddin.UI
                 Cursor    = Cursors.Hand;
                 ForeColor = TextPrimary;
                 BackColor = BgPanel;
-                Font      = new WinFont("Arial", 9f, FontStyle.Bold);
+                Font      = new WinFont(PrimaryFontFamily, 9f, FontStyle.Bold);
 
                 MouseEnter += (s, e) => StartHover(true);
                 MouseLeave += (s, e) => StartHover(false);
                 MouseDown  += (s, e) => { _pressed = true;  Invalidate(); };
                 MouseUp    += (s, e) => { _pressed = false; Invalidate(); };
+                EnabledChanged += (s, e) => { this.Cursor = Enabled ? Cursors.Hand : Cursors.Default; };
             }
 
             private void StartHover(bool inDir)
@@ -823,8 +845,11 @@ namespace Koovra.Cto.AutocadAddin.UI
                 base.OnResize(e);
                 if (Width > 4 && Height > 4)
                 {
-                    using (var path = MakeCornerCutPath(Width - 1, Height - 1, 7))
-                        this.Region = new Region(path);
+                    var newPath = MakeCornerCutPath(Width - 1, Height - 1, 7);
+                    this.Region?.Dispose();
+                    this.Region = new Region(newPath);
+                    _regionPath?.Dispose();
+                    _regionPath = newPath;
                 }
             }
 
@@ -852,10 +877,10 @@ namespace Koovra.Cto.AutocadAddin.UI
 
                 if (!Enabled)
                 {
-                    using (var b = new SolidBrush(Color.FromArgb(60, Navy)))
+                    using (var b = new SolidBrush(Color.FromArgb(45, Navy)))
                         g.FillRectangle(b, 0, 0, w + 1, h + 1);
                     using (var path = MakeCornerCutPath(w, h, 7))
-                    using (var pen = new Pen(Color.FromArgb(60, Steel)))
+                    using (var pen = new Pen(Color.FromArgb(45, Steel)))
                         g.DrawPath(pen, path);
                     using (var b = new SolidBrush(TextMuted))
                         g.DrawString(Text, Font, b,
@@ -932,11 +957,16 @@ namespace Koovra.Cto.AutocadAddin.UI
 
             protected override void Dispose(bool disposing)
             {
-                if (disposing && _hoverTimer != null)
+                if (disposing)
                 {
-                    _hoverTimer.Stop();
-                    _hoverTimer.Dispose();
-                    _hoverTimer = null;
+                    if (_hoverTimer != null)
+                    {
+                        _hoverTimer.Stop();
+                        _hoverTimer.Dispose();
+                        _hoverTimer = null;
+                    }
+                    _regionPath?.Dispose();
+                    this.Region?.Dispose();
                 }
                 base.Dispose(disposing);
             }
@@ -959,6 +989,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             private float _hoverProgress = 0f;
             private Timer _hoverTimer;
             private bool  _pressed;
+            private GraphicsPath _regionPath;
 
             public BtnFuturista(BtnStyle style = BtnStyle.Secondary, BtnIcon icon = BtnIcon.None,
                                 BtnShape shape = BtnShape.Rect)
@@ -971,7 +1002,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 Cursor    = Cursors.Hand;
                 ForeColor = TextPrimary;
                 BackColor = BgPanel;
-                Font      = new WinFont("Arial", 9f, FontStyle.Bold);
+                Font      = new WinFont(PrimaryFontFamily, 9f, FontStyle.Bold);
 
                 MouseEnter += (s, e) => StartHover(true);
                 MouseLeave += (s, e) => StartHover(false);
@@ -1019,11 +1050,13 @@ namespace Koovra.Cto.AutocadAddin.UI
                           : (_shape == BtnShape.DialogCut) ? 7
                           : 0;
                 if (notch == 0) return;
-                GraphicsPath path = (_shape == BtnShape.Chevron || _shape == BtnShape.ChevronWide)
+                GraphicsPath newPath = (_shape == BtnShape.Chevron || _shape == BtnShape.ChevronWide)
                     ? MakeChevronPath(Width - 1, Height - 1, notch)
                     : MakeCornerCutPath(Width - 1, Height - 1, notch);
-                this.Region = new Region(path);
-                path.Dispose();
+                this.Region?.Dispose();
+                this.Region = new Region(newPath);
+                _regionPath?.Dispose();
+                _regionPath = newPath;
             }
 
             protected override void OnPaintBackground(PaintEventArgs e)
@@ -1139,11 +1172,16 @@ namespace Koovra.Cto.AutocadAddin.UI
 
             protected override void Dispose(bool disposing)
             {
-                if (disposing && _hoverTimer != null)
+                if (disposing)
                 {
-                    _hoverTimer.Stop();
-                    _hoverTimer.Dispose();
-                    _hoverTimer = null;
+                    if (_hoverTimer != null)
+                    {
+                        _hoverTimer.Stop();
+                        _hoverTimer.Dispose();
+                        _hoverTimer = null;
+                    }
+                    _regionPath?.Dispose();
+                    this.Region?.Dispose();
                 }
                 base.Dispose(disposing);
             }

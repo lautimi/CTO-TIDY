@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Linq;
 using System.Windows.Forms;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -29,6 +30,7 @@ namespace Koovra.Cto.AutocadAddin.UI
         private static Color Danger          => FuturisticTheme.Danger;
 
         // ── Controls ─────────────────────────────────────────────────────────
+        private Panel                _layerPanel;
         private CheckedListBoxOwner _clbLayers;
         private Label               _lblLayerSummary;
         private CboFuturista                    _cboNewCode;
@@ -51,34 +53,39 @@ namespace Koovra.Cto.AutocadAddin.UI
         private double _glowPhase  = 0.0;
         private float  _shimmerX   = -200f;
         private FuturisticTheme.HeaderPanel _header;
+        private GraphicsPath _formRegionPath;
+        private bool _inResize;
 
         // ── Constructor ───────────────────────────────────────────────────────
         public SettingsDialog()
         {
             FormBorderStyle = FormBorderStyle.None;
-            Size            = new Size(540, 480);
-            MinimumSize     = new Size(540, 480);
+            Size            = new Size(540, 620);
+            MinimumSize     = new Size(500, 560);
             StartPosition   = FormStartPosition.CenterScreen;
             BackColor       = BgBase;
             ForeColor       = TextPrimary;
-            Font            = new WinFont("Arial", 9f);
+            Font            = new WinFont(FuturisticTheme.PrimaryFontFamily, 9f);
             DoubleBuffered  = true;
 
             // Rounded corners 4px
-            var path = new GraphicsPath();
-            path.AddArc(0, 0, 8, 8, 180, 90);
-            path.AddArc(Width - 8, 0, 8, 8, 270, 90);
-            path.AddArc(Width - 8, Height - 8, 8, 8, 0, 90);
-            path.AddArc(0, Height - 8, 8, 8, 90, 90);
-            path.CloseFigure();
-            this.Region = new System.Drawing.Region(path);
+            {
+                var newPath = new GraphicsPath();
+                newPath.AddArc(0, 0, 8, 8, 180, 90);
+                newPath.AddArc(Width - 8, 0, 8, 8, 270, 90);
+                newPath.AddArc(Width - 8, Height - 8, 8, 8, 0, 90);
+                newPath.AddArc(0, Height - 8, 8, 8, 90, 90);
+                newPath.CloseFigure();
+                this.Region?.Dispose();
+                this.Region = new System.Drawing.Region(newPath);
+                _formRegionPath?.Dispose();
+                _formRegionPath = newPath;
+            }
 
             // Fade-in: start transparent, timer fires on Load
             this.Opacity = 0.0;
 
             BuildUI();
-            PopulateLayerList();
-            LoadFromSettings();
 
             KeyPreview = true;
             KeyDown += OnKeyDown;
@@ -87,6 +94,13 @@ namespace Koovra.Cto.AutocadAddin.UI
         }
 
         // ── Form Load ─────────────────────────────────────────────────────────
+
+        protected override void OnLoad(EventArgs e)
+        {
+            base.OnLoad(e);
+            PopulateLayerList();
+            LoadFromSettings();
+        }
 
         private void OnFormLoad(object sender, EventArgs e)
         {
@@ -108,15 +122,49 @@ namespace Koovra.Cto.AutocadAddin.UI
 
         private void OnFormResize(object sender, EventArgs e)
         {
-            // Recompute rounded region on resize
-            var path = new GraphicsPath();
-            path.AddArc(0, 0, 8, 8, 180, 90);
-            path.AddArc(Width - 8, 0, 8, 8, 270, 90);
-            path.AddArc(Width - 8, Height - 8, 8, 8, 0, 90);
-            path.AddArc(0, Height - 8, 8, 8, 90, 90);
-            path.CloseFigure();
-            this.Region = new System.Drawing.Region(path);
-            Invalidate();
+            if (_inResize) return;
+            _inResize = true;
+            try
+            {
+                // Recompute rounded region on resize
+                {
+                    var newPath = new GraphicsPath();
+                    newPath.AddArc(0, 0, 8, 8, 180, 90);
+                    newPath.AddArc(Width - 8, 0, 8, 8, 270, 90);
+                    newPath.AddArc(Width - 8, Height - 8, 8, 8, 0, 90);
+                    newPath.AddArc(0, Height - 8, 8, 8, 90, 90);
+                    newPath.CloseFigure();
+                    this.Region?.Dispose();
+                    this.Region = new System.Drawing.Region(newPath);
+                    _formRegionPath?.Dispose();
+                    _formRegionPath = newPath;
+                }
+
+                // Fix 4: _layerPanel crece proporcionalmente con el alto del form
+                // para que _clbLayers (Anchor=Bottom dentro de _layerPanel) no quede
+                // con altura fija cuando el dialog se agranda.
+                if (_layerPanel != null && Created && WindowState != FormWindowState.Minimized)
+                {
+                    SuspendLayout();
+
+                    int headerH = _header?.Height ?? 0;
+                    int footerH = 64;
+                    const int minCodesHeight = 200;
+
+                    int extra = Math.Max(0, Height - MinimumSize.Height);
+                    int calculada = 160 + (int)(extra * 0.35);
+                    int maxPermitida = ClientSize.Height - headerH - footerH - minCodesHeight;
+                    _layerPanel.Height = Math.Max(160, Math.Min(calculada, maxPermitida));
+
+                    ResumeLayout();
+                }
+
+                Invalidate();
+            }
+            finally
+            {
+                _inResize = false;
+            }
         }
 
         private void OnFadeTick(object sender, EventArgs e)
@@ -169,14 +217,13 @@ namespace Koovra.Cto.AutocadAddin.UI
             _header = new FuturisticTheme.HeaderPanel(
                 this, GetGlowPhase, GetShimmerX,
                 title:     null,
-                subtitle:  "Configuración · CTO_CONFIG",
-                tag:       "[ CTO_CONFIG ]",
+                subtitle:  null,
+                tag:       null,
                 showClose: true)
             {
                 Dock   = DockStyle.Top,
                 Height = 68,
             };
-            Controls.Add(_header);
 
             // ── Footer panel (Dock=Bottom, 64px) ─────────────────────────────
             var footer = new Panel
@@ -194,7 +241,6 @@ namespace Koovra.Cto.AutocadAddin.UI
                 }
                 catch { /* GDI+ transient; repaint will retry */ }
             };
-            Controls.Add(footer);
 
             _btnDefaults = new FuturisticTheme.DialogButton(FuturisticTheme.DialogBtnStyle.Secondary) { Text = "Defaults" };
             _btnDefaults.Size     = new Size(110, 32);
@@ -229,98 +275,141 @@ namespace Koovra.Cto.AutocadAddin.UI
             gripPanel.ResizeTarget = this;
 
             // ── Body content ─────────────────────────────────────────────────
-            int y = 80;
 
             // ── LAYER DE POSTES section ───────────────────────────────────────
-            var lblLayerSection = MakeSectionLabel("LAYER DE POSTES", 20, y);
-            lblLayerSection.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            Controls.Add(lblLayerSection);
-            y += 28;
-
-            _clbLayers = new CheckedListBoxOwner
+            // Fix 4: _clbLayers usa Dock=Fill dentro de _layerPanel para
+            // que crezca en alto junto con el form (en vez de altura fija de 90px).
+            _layerPanel = new Panel
             {
-                Size     = new Size(380, 90),
-                Location = new Point(20, y),
-                Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                Dock   = DockStyle.Top,
+                Height = 160,
             };
-            _clbLayers.ItemCheck += OnLayerItemCheck;
-            Controls.Add(_clbLayers);
-
-            _btnPick = new FuturisticTheme.DialogButton(FuturisticTheme.DialogBtnStyle.Primary) { Text = "Pick" };
-            _btnPick.Size     = new Size(90, 30);
-            _btnPick.Location = new Point(408, y);
-            _btnPick.Anchor   = AnchorStyles.Top | AnchorStyles.Right;
-            _btnPick.Click   += OnPickClick;
-            Controls.Add(_btnPick);
-            y += 96;
 
             _lblLayerSummary = new Label
             {
                 Text      = "0 layer(s) seleccionado(s)",
-                Location  = new Point(20, y),
+                Dock      = DockStyle.Bottom,
+                Height    = 22,
                 AutoSize  = false,
-                Size      = new Size(480, 18),
                 ForeColor = TextSecondary,
-                Font      = new WinFont("Arial", 8f),
-                Anchor    = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                Font      = new WinFont(FuturisticTheme.PrimaryFontFamily, 8f),
+                Padding   = new Padding(20, 0, 20, 0),
             };
-            Controls.Add(_lblLayerSummary);
-            y += 22;
 
-            // ── CÓDIGOS DE OBSERVACIÓN section ──────────────────────────────
-            var lblCodesSection = MakeSectionLabel("CÓDIGOS DE OBSERVACIÓN", 20, y);
-            lblCodesSection.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            Controls.Add(lblCodesSection);
-            y += 24;
+            var lblLayerSection = MakeSectionLabel("LAYER DE POSTES", 0, 0);
+            lblLayerSection.Dock = DockStyle.Fill;
+
+            _btnPick = new FuturisticTheme.DialogButton(FuturisticTheme.DialogBtnStyle.Primary) { Text = "Pick" };
+            _btnPick.Dock   = DockStyle.Right;
+            _btnPick.Width  = 90;
+            _btnPick.Click += OnPickClick;
+
+            var titleRow = new Panel
+            {
+                Dock   = DockStyle.Top,
+                Height = 34,
+            };
+            titleRow.Controls.Add(lblLayerSection);
+            titleRow.Controls.Add(_btnPick);
+
+            _clbLayers = new CheckedListBoxOwner
+            {
+                Dock = DockStyle.Fill,
+            };
+            _clbLayers.ItemCheck += OnLayerItemCheck;
+
+            _layerPanel.Padding = new Padding(20, 8, 20, 4);
+
+            // Orden de adición: Fill primero para que ocupe el resto del panel,
+            // luego Bottom, luego Top (WinForms docka respetando el orden de la colección).
+            _layerPanel.Controls.Add(_clbLayers);
+            _layerPanel.Controls.Add(_lblLayerSummary);
+            _layerPanel.Controls.Add(titleRow);
+
+            // ── CÓDIGOS DE OBSERVACIÓN section (Dock=Fill) ────────────────────
+            var codesPanel = new Panel
+            {
+                Dock    = DockStyle.Fill,
+                Padding = new Padding(20, 4, 20, 12),
+            };
+
+            // ── Orden de adición a this.Controls (WinForms docka en orden
+            // INVERSO a la colección): Fill primero, luego Top/Bottom en orden
+            // inverso al visual, header al final para que quede arriba de todo.
+            Controls.Add(codesPanel);
+            Controls.Add(footer);
+            Controls.Add(_layerPanel);
+            Controls.Add(_header);
+
+            var lblCodesSection = MakeSectionLabel("CÓDIGOS DE OBSERVACIÓN", 0, 0);
+            lblCodesSection.Dock = DockStyle.Top;
 
             var subLabel = new Label
             {
                 Text      = "Códigos que penalizan ranking de postes PRIORIDAD",
-                Location  = new Point(20, y),
-                AutoSize  = true,
+                AutoSize  = false,
+                Height    = 20,
+                Dock      = DockStyle.Top,
                 ForeColor = TextSecondary,
-                Font      = new WinFont("Arial", 9f),
-                Anchor    = AnchorStyles.Top | AnchorStyles.Left,
+                Font      = new WinFont(FuturisticTheme.PrimaryFontFamily, 9f),
             };
-            Controls.Add(subLabel);
-            y += 20;
 
-            // Fix 3: _btnAddCode same row as _cboNewCode
+            // Fila "agregar código" (Dock=Top, altura fija)
+            var addRow = new Panel
+            {
+                Dock   = DockStyle.Top,
+                Height = 38,
+            };
+
             _cboNewCode = new CboFuturista { DropDownStyle = ComboBoxStyle.DropDown, PlaceholderText = "nuevo código..." };
-            _cboNewCode.Size     = new Size(380, 30);
-            _cboNewCode.Location = new Point(20, y);
-            _cboNewCode.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            _cboNewCode.Dock     = DockStyle.Fill;
             _cboNewCode.KeyDown += OnCodeComboKeyDown;
             foreach (string c in AddinSettings.BuildDefaultObservationCodes())
                 _cboNewCode.Items.Add(c);
-            Controls.Add(_cboNewCode);
+            addRow.Controls.Add(_cboNewCode);
+
+            var addSpacer = new Panel
+            {
+                Width     = 8,
+                Dock      = DockStyle.Right,
+                BackColor = Color.Transparent,
+            };
+            addRow.Controls.Add(addSpacer);
 
             _btnAddCode = new FuturisticTheme.DialogButton(FuturisticTheme.DialogBtnStyle.Primary) { Text = "Agregar" };
-            _btnAddCode.Size     = new Size(90, 30);
-            _btnAddCode.Location = new Point(408, y);
-            _btnAddCode.Anchor   = AnchorStyles.Top | AnchorStyles.Right;
-            _btnAddCode.Click   += OnAddCodeClick;
-            Controls.Add(_btnAddCode);
-            y += 38;
+            _btnAddCode.Size   = new Size(90, 30);
+            _btnAddCode.Dock   = DockStyle.Right;
+            _btnAddCode.Click += OnAddCodeClick;
+            addRow.Controls.Add(_btnAddCode);
 
-            // Fix 3: _lstCodes anchored Top|Left|Right|Bottom so it grows with resize
+            // Fila "quitar código" (Dock=Bottom, altura fija)
+            var removeRow = new Panel
+            {
+                Dock   = DockStyle.Bottom,
+                Height = 38,
+            };
+
+            _btnRemoveCode = new FuturisticTheme.DialogButton(FuturisticTheme.DialogBtnStyle.Danger) { Text = "Quitar", Enabled = false };
+            _btnRemoveCode.Size   = new Size(90, 30);
+            _btnRemoveCode.Dock   = DockStyle.Right;
+            _btnRemoveCode.Click += OnRemoveCodeClick;
+            removeRow.Controls.Add(_btnRemoveCode);
+
             _lstCodes = new ListBoxOwner
             {
-                Size     = new Size(476, 100),
-                Location = new Point(20, y),
-                Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom,
+                Dock = DockStyle.Fill,
             };
             _lstCodes.SelectedIndexChanged += (s, e) => UpdateRemoveButton();
-            Controls.Add(_lstCodes);
 
-            // Fix 3: _btnRemoveCode below listbox, aligned right, Anchor=Bottom|Right
-            _btnRemoveCode = new FuturisticTheme.DialogButton(FuturisticTheme.DialogBtnStyle.Danger) { Text = "Quitar", Enabled = false };
-            _btnRemoveCode.Size     = new Size(90, 30);
-            // Position relative to bottom of form (footer is 64px, so 64+30+8=102 from bottom)
-            _btnRemoveCode.Location = new Point(406, Height - 64 - 30 - 8);
-            _btnRemoveCode.Anchor   = AnchorStyles.Bottom | AnchorStyles.Right;
-            _btnRemoveCode.Click   += OnRemoveCodeClick;
-            Controls.Add(_btnRemoveCode);
+            // Orden de adición a codesPanel (WinForms docka en orden INVERSO a la
+            // colección: el Fill va primero para que se dockee al final y ocupe
+            // solo el espacio restante — si va último, se dockea primero, ocupa
+            // todo el panel y las filas Top le tapan los primeros ítems).
+            codesPanel.Controls.Add(_lstCodes);        // Fill — primero
+            codesPanel.Controls.Add(removeRow);        // Bottom
+            codesPanel.Controls.Add(addRow);           // Top (más cercana a la lista)
+            codesPanel.Controls.Add(subLabel);         // Top
+            codesPanel.Controls.Add(lblCodesSection);  // Top — arriba de todo
 
             // Tab order
             _clbLayers.TabIndex     = 0;
@@ -359,12 +448,16 @@ namespace Koovra.Cto.AutocadAddin.UI
                 using (var tr = db.TransactionManager.StartTransaction())
                 {
                     var lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
+                    var names = new List<string>();
                     foreach (ObjectId id in lt)
                     {
                         var rec = (LayerTableRecord)tr.GetObject(id, OpenMode.ForRead);
-                        _clbLayers.Items.Add(rec.Name, false);
+                        names.Add(rec.Name);
                     }
                     tr.Commit();
+
+                    foreach (string name in names.OrderBy(name => name, StringComparer.OrdinalIgnoreCase))
+                        _clbLayers.Items.Add(name, false);
                 }
             }
             catch { /* no layers available */ }
@@ -408,7 +501,12 @@ namespace Koovra.Cto.AutocadAddin.UI
             foreach (string code in AddinSettings.Current.ObservationCodes)
                 _lstCodes.Items.Add(code);
 
+            if (_lstCodes.Items.Count > 0) _lstCodes.TopIndex = 0;
+            _lstCodes.ClearSelected();
+
             UpdateRemoveButton();
+
+            Infrastructure.AcadLogger.Info($"CTO_CONFIG: {_lstCodes.Items.Count} códigos de observación cargados.");
         }
 
         private bool ValidateAndApply()
@@ -648,6 +746,8 @@ namespace Koovra.Cto.AutocadAddin.UI
                     _shimmerTimer.Dispose();
                     _shimmerTimer = null;
                 }
+                _formRegionPath?.Dispose();
+                this.Region?.Dispose();
             }
             base.Dispose(disposing);
         }
@@ -730,7 +830,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             {
                 Text      = text.ToUpperInvariant();
                 ForeColor = FuturisticTheme.Steel;
-                Font      = new WinFont("Arial", 9f, FontStyle.Bold);
+                Font      = new WinFont(FuturisticTheme.PrimaryFontFamily, 9f, FontStyle.Bold);
                 AutoSize  = false;
                 Height    = 22;
             }
@@ -743,7 +843,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 var g = e.Graphics;
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                 using (var b = new SolidBrush(FuturisticTheme.Steel))
-                using (var f = new WinFont("Arial", 9f, FontStyle.Bold))
+                using (var f = new WinFont(FuturisticTheme.PrimaryFontFamily, 9f, FontStyle.Bold))
                 {
                     string label = Text;
                     var sz = g.MeasureString(label, f);
@@ -770,7 +870,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 DrawMode       = DrawMode.OwnerDrawFixed;
                 ItemHeight     = 24;
                 BorderStyle    = BorderStyle.None;
-                Font           = new WinFont("Arial", 10f);
+                Font           = new WinFont(FuturisticTheme.PrimaryFontFamily, 10f);
                 DoubleBuffered = true;
                 CheckOnClick   = true;
             }
@@ -821,8 +921,10 @@ namespace Koovra.Cto.AutocadAddin.UI
                 };
 
                 Color textColor = ischecked ? TextPrimary : TextSecondary;
+                if (text.IndexOf("POSTE", StringComparison.OrdinalIgnoreCase) >= 0)
+                    textColor = FuturisticTheme.Info;
                 using (var b = new SolidBrush(textColor))
-                using (var f = new WinFont("Arial", 10f))
+                using (var f = new WinFont(FuturisticTheme.PrimaryFontFamily, 10f))
                     g.DrawString(text, f, b, textRect, fmt);
             }
 
@@ -863,7 +965,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 BackColor = BgPanel;
                 ForeColor = TextPrimary;
                 FlatStyle = FlatStyle.Flat;
-                Font      = new WinFont("Arial", 10f);
+                Font      = new WinFont(FuturisticTheme.PrimaryFontFamily, 10f);
                 Height    = 30;
                 GotFocus  += (s, e) => { _focused = true;  Invalidate(); };
                 LostFocus += (s, e) => { _focused = false; Invalidate(); };
@@ -903,7 +1005,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                             && !string.IsNullOrEmpty(PlaceholderText))
                         {
                             using (var b = new SolidBrush(TextMuted))
-                            using (var f = new WinFont("Arial", 9f, FontStyle.Italic))
+                            using (var f = new WinFont(FuturisticTheme.PrimaryFontFamily, 9f, FontStyle.Italic))
                                 g.DrawString(PlaceholderText, f, b, new PointF(4, 7));
                         }
                     }
@@ -929,7 +1031,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 DrawMode       = DrawMode.OwnerDrawFixed;
                 ItemHeight     = 28;
                 BorderStyle    = BorderStyle.None;
-                Font           = new WinFont("Arial", 10f);
+                Font           = new WinFont(FuturisticTheme.PrimaryFontFamily, 10f);
                 DoubleBuffered = true;
                 MouseMove     += OnMouseMoveList;
                 MouseLeave    += (s, e) => { _hoverIdx = -1; Invalidate(); };
@@ -971,7 +1073,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 if (Items.Count == 0)
                 {
                     using (var b = new SolidBrush(TextMuted))
-                    using (var f = new WinFont("Arial", 9f, FontStyle.Italic))
+                    using (var f = new WinFont(FuturisticTheme.PrimaryFontFamily, 9f, FontStyle.Italic))
                         g.DrawString("Sin códigos. Agregá uno arriba.", f, b,
                             new RectangleF(e.Bounds.X + 12, e.Bounds.Y + 6, e.Bounds.Width - 12, e.Bounds.Height));
                     return;
@@ -986,7 +1088,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 };
 
                 using (var b = new SolidBrush(TextPrimary))
-                using (var f = new WinFont("Arial", 10f))
+                using (var f = new WinFont(FuturisticTheme.PrimaryFontFamily, 10f))
                     g.DrawString(text, f, b, textRect, fmt);
             }
 
@@ -999,7 +1101,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 if (Items.Count == 0)
                 {
                     using (var b = new SolidBrush(TextMuted))
-                    using (var f = new WinFont("Arial", 9f, FontStyle.Italic))
+                    using (var f = new WinFont(FuturisticTheme.PrimaryFontFamily, 9f, FontStyle.Italic))
                         e.Graphics.DrawString("Sin códigos. Agregá uno arriba.", f, b,
                             new RectangleF(12, 8, Width - 24, Height - 8));
                 }

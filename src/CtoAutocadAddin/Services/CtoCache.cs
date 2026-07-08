@@ -16,6 +16,7 @@ namespace Koovra.Cto.AutocadAddin.Services
         public static ObjectIdCollection SegmentosCached { get; set; }
         public static ObjectIdCollection ManzanasCached  { get; set; }
         public static List<PosteWarning> PostesEnEsquina { get; set; } = new List<PosteWarning>();
+        public static List<TextBufferCollector.HpBlock> HpBlocksCached { get; set; }
 
         public static bool IsInitialized => CornerLib != null;
 
@@ -26,6 +27,7 @@ namespace Koovra.Cto.AutocadAddin.Services
             SegmentosCached = null;
             ManzanasCached = null;
             PostesEnEsquina = new List<PosteWarning>();
+            HpBlocksCached = null;
         }
     }
 }

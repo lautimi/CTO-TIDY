@@ -192,6 +192,9 @@ Al abrir `CTO_PANEL` se precomputa la `StreetCornerLibrary` con un overlay UI an
 - **Comando `CTO_INSPECCIONAR`**: agregado como diagnóstico — `LIST` en
   AutoCAD solo muestra coordenadas del bloque, no la XData; el nuevo comando
   dumpea todas las claves KOOVRA_CTO del poste seleccionado.
+> Desde 2026-07-08: HP total por segmento se calcula solo con SDU (MDU
+> excluido) — corrección de bug en `TextBufferCollector.LoadAllHpBlocks`
+> (antes sumaba SDU+MDU incorrectamente).
 
 ## Módulos críticos
 

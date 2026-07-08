@@ -1,7 +1,7 @@
 ---
 name: ander
 description: Mantiene docs/ como fuente de verdad canónica del proyecto CTO. Úsalo cuando sifon o el usuario definan una nueva especificación técnica, regla, decisión, comando o término que haya que persistir para futuras sesiones. No toca src/ ni tests/.
-model: sonnet
+model: claude-sonnet-5
 tools: Read, Edit, Write, Glob, Grep
 ---
 
