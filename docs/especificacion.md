@@ -123,6 +123,9 @@ Ver [`arquitectura.md`](./arquitectura.md) y [`comandos.md`](./comandos.md).
 
 1. **Asociar postes a segmentos** — `CTO_ASOCIAR_POSTES` (raycast ortogonal).
 2. **Leer comentarios** — `CTO_LEER_COMENTARIOS` (buffer circular).
+   - Regla de cálculo de HP: `HP_total = Σ SDU` de los bloques `CONT_HP`
+     asociados al segmento. El atributo `MDU` se lee del bloque pero se
+     **excluye** del total (no se suma a SDU).
 3. **[Asociar frentes/lingas]** — se hace dentro del paso 1 (misma corrida).
 4. **Calcular CTOs** — `CTO_CALCULAR` (agrupa por SEGMENTO, tabla HP × Largo).
 5. **Desplegar bloques** — `CTO_DESPLEGAR` (purge + insert rotado por ángulo de linga).

@@ -53,7 +53,7 @@ namespace Koovra.Cto.AutocadAddin.Services
         public class HpBlock
         {
             public Point3d Position;
-            public int     Hp;           // SDU + MDU
+            public int     Hp;           // solo SDU — MDU se lee del bloque pero NO entra en el cálculo de CTOs
             public string  SegmentId;    // Handle hex del segmento asociado (puede ser null si no encontró)
             public double  Rotation;     // Rotación del bloque CONT_HP en radianes (alineada al eje de calle)
         }
@@ -129,7 +129,7 @@ namespace Koovra.Cto.AutocadAddin.Services
                 result.Add(new HpBlock
                 {
                     Position  = br.Position,
-                    Hp        = sdu + mdu,
+                    Hp        = sdu,
                     SegmentId = segId,
                     Rotation  = br.Rotation,
                 });

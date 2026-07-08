@@ -28,7 +28,7 @@ namespace Koovra.Cto.AutocadAddin.Models
 
         // Códigos que, si aparecen en COMENTARIOS de un poste, lo empujan al final del ranking PRIORIDAD.
         // No persiste entre sesiones.
-        public List<string> ObservationCodes { get; set; } = BuildDefaultObservationCodes();
+        public List<string> ObservationCodes { get; set; } = BuildDefaultActiveCodes();
 
         public static List<string> BuildDefaultPoleLayerNames()
         {
@@ -45,10 +45,15 @@ namespace Koovra.Cto.AutocadAddin.Models
             };
         }
 
+        public static List<string> BuildDefaultActiveCodes()
+        {
+            return new List<string> { "VEG", "OCUPADO", "APOYO", "INCLINADO", "MALO" };
+        }
+
         public void ResetToDefaults()
         {
             PoleLayerNames   = BuildDefaultPoleLayerNames();
-            ObservationCodes = BuildDefaultObservationCodes();
+            ObservationCodes = BuildDefaultActiveCodes();
         }
     }
 }

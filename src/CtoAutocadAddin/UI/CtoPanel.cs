@@ -174,19 +174,20 @@ namespace Koovra.Cto.AutocadAddin.UI
             var fadeTimer = new Timer { Interval = 16 };
             fadeTimer.Tick += (s, e) =>
             {
-                if (_loadingOverlay == null)
+                try
+                {
+                    if (_loadingOverlay == null) return;
+                    // Implementación simple: remove directo
+                    Controls.Remove(_loadingOverlay);
+                    _loadingOverlay.Stop();
+                    _loadingOverlay.Dispose();
+                    _loadingOverlay = null;
+                }
+                finally
                 {
                     fadeTimer.Stop();
                     fadeTimer.Dispose();
-                    return;
                 }
-                // Implementación simple: remove directo
-                Controls.Remove(_loadingOverlay);
-                _loadingOverlay.Stop();
-                _loadingOverlay.Dispose();
-                _loadingOverlay = null;
-                fadeTimer.Stop();
-                fadeTimer.Dispose();
             };
             fadeTimer.Start();
         }
@@ -252,7 +253,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             MinimumSize     = new Size(340, 520);
             BackColor       = FuturisticTheme.BgBase;
             ForeColor       = FuturisticTheme.TextPrimary;
-            Font            = new WinFont("Arial", 9f);
+            Font            = new WinFont(FuturisticTheme.PrimaryFontFamily, 9f);
             DoubleBuffered  = true;
 
             // ── Warnings panel (postes en esquina) — Dock=Bottom, añadir primero ──
@@ -264,7 +265,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 Dock      = DockStyle.Top,
                 Height    = 24,
                 Padding   = new Padding(8, 4, 0, 0),
-                Font      = new WinFont("Arial", 8.5f, FontStyle.Bold),
+                Font      = new WinFont(FuturisticTheme.PrimaryFontFamily, 8.5f, FontStyle.Bold),
             };
 
             _warningList = new FlowLayoutPanel
@@ -326,7 +327,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             var btnConfig = new FuturisticTheme.SecondaryButton
             {
                 Text = "Configuración",
-                Font = new WinFont("Arial", 8.5f, FontStyle.Bold),
+                Font = new WinFont(FuturisticTheme.PrimaryFontFamily, 8.5f, FontStyle.Bold),
             };
             btnConfig.Click += (s, e) =>
             {
@@ -355,7 +356,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             var btnInspect = new FuturisticTheme.SecondaryButton
             {
                 Text = "Inspeccionar poste (diagnóstico)",
-                Font = new WinFont("Arial", 8.5f, FontStyle.Bold),
+                Font = new WinFont(FuturisticTheme.PrimaryFontFamily, 8.5f, FontStyle.Bold),
             };
             btnInspect.Click += (s, e) =>
             {
@@ -403,7 +404,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 ForeColor = FuturisticTheme.TextSecondary,
                 AutoSize  = true,
                 Location  = new Point(14, 13),
-                Font      = new WinFont("Arial", 8.5f),
+                Font      = new WinFont(FuturisticTheme.PrimaryFontFamily, 8.5f),
             };
 
             _nudRadius = new NumericUpDown
@@ -418,7 +419,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 ForeColor     = FuturisticTheme.TextPrimary,
                 BorderStyle   = BorderStyle.None,
                 Location      = new Point(144, 10),
-                Font          = new WinFont("Arial", 8.5f),
+                Font          = new WinFont(FuturisticTheme.PrimaryFontFamily, 8.5f),
             };
             _nudRadius.Paint += (s, e) =>
             {
@@ -478,8 +479,8 @@ namespace Koovra.Cto.AutocadAddin.UI
                 getGlowPhase: null,
                 getShimmerX:  null,
                 title:        null,
-                subtitle:     "v3.0 · AutoCAD Add-in",
-                tag:          "[ VEZEEL · CTO ]",
+                subtitle:     null,
+                tag:          null,
                 showClose:    false,
                 logoHeight:   26)
             {
@@ -784,6 +785,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             using (var tr = doc.Database.TransactionManager.StartTransaction())
             {
                 var allHpBlocks  = TextBufferCollector.LoadAllHpBlocks(tr, ed, segmentos);
+                CtoCache.HpBlocksCached = allHpBlocks;
                 var hpPerSegment = TextBufferCollector.BuildHpPerSegment(allHpBlocks);
 
                 var col = new TextBufferCollector(ed, radius);
@@ -912,7 +914,16 @@ namespace Koovra.Cto.AutocadAddin.UI
                     ObjectIdCollection segmentos = SelectionContext.Instance.Segmentos;
                     if (segmentos == null || segmentos.Count == 0)
                         segmentos = SelectionService.SelectSegmentos(doc.Editor);
-                    var hpBlocks = TextBufferCollector.LoadAllHpBlocks(tr, doc.Editor, segmentos);
+                    List<TextBufferCollector.HpBlock> hpBlocks;
+                    if (CtoCache.HpBlocksCached != null)
+                    {
+                        hpBlocks = CtoCache.HpBlocksCached;
+                    }
+                    else
+                    {
+                        hpBlocks = TextBufferCollector.LoadAllHpBlocks(tr, doc.Editor, segmentos);
+                        CtoCache.HpBlocksCached = hpBlocks;
+                    }
                     AppendLog($"CONT_HP cargados: {hpBlocks.Count} (con segmento asociado).", LogLevel.Info);
 
                     var hpBySeg = new Dictionary<string, TextBufferCollector.HpBlock>(
@@ -1134,7 +1145,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                     Text     = label,
                     Size     = new Size(204, 30),
                     Location = new Point(30, 9),
-                    Font     = new WinFont("Arial", 8.5f, FontStyle.Bold),
+                    Font     = new WinFont(FuturisticTheme.PrimaryFontFamily, 8.5f, FontStyle.Bold),
                 };
 
                 _info = new Label

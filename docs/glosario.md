@@ -6,7 +6,7 @@ Términos del dominio CTO / FTTH que aparecen en la spec, código y comentarios.
 |---|---|
 | **CTO** | Caja Terminal Óptica. Punto de derivación donde se conectan los domicilios a la red de fibra. En el DWG se materializan como `BlockReference` en la capa CTO. |
 | **FTTH** | Fiber To The Home. Tecnología de fibra óptica hasta el hogar. |
-| **HP** | Hogares Pasados (Futuro 100%). Cantidad total de domicilios que la red pasa frente a un segmento de calle. Es el input principal de la tabla de cálculo. |
+| **HP** | Hogares Pasados (Futuro 100%). Cantidad total de domicilios que la red pasa frente a un segmento de calle. Es el input principal de la tabla de cálculo. `HP_total` se calcula únicamente sumando el atributo `SDU` de los bloques `CONT_HP` asociados al segmento; `MDU` NO se suma. |
 | **Segmento** | Eje de calle (Polyline en el DWG). Unidad de agrupamiento del cálculo. Un segmento = 2 frentes de manzana + 1 bloque CONT_HP. |
 | **Manzana** | Polígono cerrado delimitado por 4 calles. Cada manzana tiene múltiples frentes (uno por lado). |
 | **Frente** | Arco de la polilínea de manzana entre dos esquinas reales (V4). Una **esquina real** es la intersección entre dos calles con nombres distintos (leídos del OD campo `CALLE_1`). Su largo (`LARGO_FRENTE`) es el valor que entra en la tabla CTO. Identificado por `"<manzanaHandle>#<segmentHandle>"` (V4/V3) o `"<manzanaHandle>#<frenteIdx>"` (V2 legacy). |
@@ -18,7 +18,9 @@ Términos del dominio CTO / FTTH que aparecen en la spec, código y comentarios.
 | **C_DESP** | Cajas de Despliegue Inicial (40%). Instaladas en la primera tanda. |
 | **C_CREC** | Cajas de Crecimiento Futuro (100%). Reservadas para expansión. |
 | **Despliegue** | Proceso de insertar los bloques CTO en el DWG (paso 5). |
-| **CONT_HP** | Bloque de conteo de HP en el DWG. Hay uno por segmento. |
+| **CONT_HP** | Bloque de conteo de HP en el DWG. Hay uno por segmento. Tiene atributos `SDU` y `MDU`; el HP total del segmento se calcula solo con `SDU` (ver **SDU**, **MDU**). |
+| **SDU** | Single Dwelling Unit — vivienda unifamiliar. Atributo del bloque `CONT_HP`. Es el único valor que se suma para obtener el `HP_total` de un segmento. |
+| **MDU** | Multi Dwelling Unit — multifamiliar/edificio. Atributo del bloque `CONT_HP`. Se lee pero se **excluye** del cálculo de `HP_total` para dimensionar CTOs. |
 | **Buffer circular** | Zona circular (radio `TEXT_BUFFER_DEFAULT = 5.0 m`) alrededor de un poste donde se capturan textos para extraer HP. |
 | **Raycast ortogonal** | Método para asociar un poste a un segmento: se disparan 4 rayos perpendiculares desde el poste y se toma la primera intersección con una Polyline de calle. |
 | **Anti-cruce** | Filtro geométrico que descarta intersecciones donde el rayo cruza un vacío o manzana antes de llegar al segmento real. Margen en `ANTI_CROSS_MARGIN = 2.0 m`. |

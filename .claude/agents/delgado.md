@@ -1,7 +1,7 @@
 ---
 name: delgado
 description: Compila CtoAutocadAddin en Release x64 y copia los DLLs a la raíz del proyecto para NETLOAD. Úsalo al final de cada implementación. Reporta errores de compilación textualmente; no intenta fixearlos.
-model: haiku
+model: claude-sonnet-5
 tools: Bash, Read, Glob
 ---
 
