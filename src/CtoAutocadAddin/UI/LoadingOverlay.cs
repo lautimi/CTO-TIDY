@@ -52,6 +52,10 @@ namespace Koovra.Cto.AutocadAddin.UI
 
         protected override void OnPaint(PaintEventArgs e)
         {
+            if (Width <= 0 || Height <= 0) return;
+            try
+            {
+
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
@@ -67,11 +71,11 @@ namespace Koovra.Cto.AutocadAddin.UI
 
             // Top divider line
             float dividerWidth = Math.Min(280f, Width * 0.7f);
-            using (var pen = new Pen(Color.FromArgb(0x33, 0x00, 0xBF, 0xFF), 1f))
+            using (var pen = new Pen(FuturisticTheme.Divider, 1f))
                 g.DrawLine(pen, cx - dividerWidth / 2f, cy - 90f, cx + dividerWidth / 2f, cy - 90f);
 
             // Title "CTO"
-            using (var f = new WinFont("Segoe UI", 28f, FontStyle.Bold))
+            using (var f = new WinFont("Arial", 28f, FontStyle.Bold))
             using (var b = new SolidBrush(FuturisticTheme.TextPrimary))
             {
                 var sz = g.MeasureString("CTO", f);
@@ -79,7 +83,7 @@ namespace Koovra.Cto.AutocadAddin.UI
             }
 
             // Subtitle
-            using (var f = new WinFont("Segoe UI", 10f))
+            using (var f = new WinFont("Arial", 10f))
             using (var b = new SolidBrush(FuturisticTheme.TextSecondary))
             {
                 const string subtitle = "Inicializando análisis topológico";
@@ -87,7 +91,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 g.DrawString(subtitle, f, b, new PointF(cx - sz.Width / 2f, cy - 14f));
             }
 
-            // Three pulsing dots
+            // Three pulsing dots — steel color
             float dotSpacing = 22f;
             float dotsCenterY = cy + 30f;
             for (int i = 0; i < 3; i++)
@@ -98,12 +102,12 @@ namespace Koovra.Cto.AutocadAddin.UI
                 int alpha = 80 + (int)(s * 175);                       // 80..255
 
                 float dotX = cx - dotSpacing + i * dotSpacing;
-                using (var b = new SolidBrush(Color.FromArgb(alpha, FuturisticTheme.AccentPrimary)))
+                using (var b = new SolidBrush(Color.FromArgb(alpha, FuturisticTheme.Steel)))
                     g.FillEllipse(b, dotX - radius, dotsCenterY - radius, radius * 2f, radius * 2f);
             }
 
             // Status text
-            using (var f = new WinFont("Segoe UI", 9f))
+            using (var f = new WinFont("Arial", 9f))
             using (var b = new SolidBrush(FuturisticTheme.TextMuted))
             {
                 var sz = g.MeasureString(_status, f);
@@ -111,8 +115,10 @@ namespace Koovra.Cto.AutocadAddin.UI
             }
 
             // Bottom divider line
-            using (var pen = new Pen(Color.FromArgb(0x33, 0x00, 0xBF, 0xFF), 1f))
+            using (var pen = new Pen(FuturisticTheme.Divider, 1f))
                 g.DrawLine(pen, cx - dividerWidth / 2f, cy + 90f, cx + dividerWidth / 2f, cy + 90f);
+
+            } catch { /* GDI+ transient; repaint will retry */ }
         }
 
         protected override void Dispose(bool disposing)
