@@ -71,6 +71,8 @@
   <ItemGroup>
     <Compile Include="Commands\AsociarPostesCommand.cs" />
     <Compile Include="Commands\DumpCallesCommand.cs" />
+    <Compile Include="Commands\GenerarConteosCommand.cs" />
+    <Compile Include="Commands\SpidersAcometidaCommand.cs" />
     <Compile Include="Commands\ConfigCommand.cs" />
     <Compile Include="Commands\PanelCommand.cs" />
     <Compile Include="UI\CtoPanel.cs" />
@@ -96,7 +98,11 @@
     <Compile Include="Persistence\AppNames.cs" />
     <Compile Include="Persistence\XDataManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\BlockAttributeWriter.cs" />
     <Compile Include="Services\CtoBlockDeployer.cs" />
+    <Compile Include="Services\HpBlockGenerator.cs" />
+    <Compile Include="Services\PropertyCollector.cs" />
+    <Compile Include="Services\SpiderDrawer.cs" />
     <Compile Include="Services\StreetCornerLibrary.cs" />
     <Compile Include="Commands\DumpEsquinasCommand.cs" />
     <Compile Include="Services\FrenteManzanaCalculator.cs" />

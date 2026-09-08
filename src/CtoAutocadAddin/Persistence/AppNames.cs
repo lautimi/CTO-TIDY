@@ -31,5 +31,15 @@ namespace Koovra.Cto.AutocadAddin.Persistence
         // ── Valores válidos de LINGA_TIPO ────────────────────────────────────
         public const string LINGA_PRIORIDAD  = "PRIORIDAD";
         public const string LINGA_SECUNDARIA = "SECUNDARIA";
+
+        // ── Propiedad servicio (CTO_GENERAR_CONTEOS / CTO_SPIDERS_ACOMETIDA) ─
+        public const string VIVIENDAS = "VIVIENDAS";   // int  — viviendas de esa propiedad
+        public const string ID_CAJA   = "ID_CAJA";     // string handle hex — caja asignada
+        public const string ORIGEN    = "ORIGEN";      // string — "AUTO" marca CONT_HP generado
+        public const string TIPO      = "TIPO";        // string — "D" / "C" en el bloque de caja
+
+        public const string ORIGEN_AUTO = "AUTO";
+        public const string TIPO_DESP   = "D";
+        public const string TIPO_CREC   = "C";
     }
 }

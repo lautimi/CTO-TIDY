@@ -196,6 +196,22 @@ Al abrir `CTO_PANEL` se precomputa la `StreetCornerLibrary` con un overlay UI an
 > excluido) — corrección de bug en `TextBufferCollector.LoadAllHpBlocks`
 > (antes sumaba SDU+MDU incorrectamente).
 
+> Desde 2026-09-08: `CTO_GENERAR_CONTEOS` / `CTO_SPIDERS_ACOMETIDA` (ver
+> `docs/comandos.md`).
+- **Idempotencia de `CONT_HP` generados por XData, no por capa**: van a la
+  misma capa `Conteo HP` que los dibujados a mano (el paso 3 filtra por esa
+  capa), así que re-ejecutar `CTO_GENERAR_CONTEOS` purga solo los marcados con
+  XData `ORIGEN=AUTO`. Los manuales nunca se purgan y su segmento queda
+  excluido de la generación: el dato de campo le gana a la estimación y no hay
+  doble conteo.
+- **Estampado de `ID_SEGMENT`/`TIPO` en `CtoBlockDeployer.InsertBlock`**: se
+  hace dentro del deployer y no en los comandos, justamente porque el deploy
+  está duplicado entre `DesplegarCtosCommand` y `CtoPanel.StepDesplegar` (ver
+  deuda técnica arriba) y ambos comparten el mismo `CtoBlockDeployer`.
+- **Reparto de acometidas por posición paramétrica sobre el eje, separado por
+  vereda**: en vez de asignar por cercanía, porque el greedy por distancia
+  produce acometidas cruzadas entre propiedades vecinas.
+
 ## Módulos críticos
 
 | Módulo | Archivo | Responsabilidad |

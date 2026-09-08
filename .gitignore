@@ -27,3 +27,6 @@ _ReSharper.Caches/
 *.log
 acad.err
 *.err
+
+# Worktrees de Claude Code — copias locales del repo, no se versionan
+.claude/worktrees/

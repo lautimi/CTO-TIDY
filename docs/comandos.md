@@ -17,6 +17,24 @@ desde la línea de comandos de AutoCAD después de `NETLOAD` del DLL.
 No existe un paso 3 separado — la asociación de frentes y lingas ocurre
 dentro del paso 1 para reutilizar la misma pasada geométrica.
 
+## Pasos opcionales
+
+No forman parte del flujo 1→5 ni de `CTO_RUN_ALL` / "Ejecutar Todo": se corren
+manualmente cuando el plano no trae los `CONT_HP` dibujados a mano, sino
+entidades de propiedad servicio del relevamiento.
+
+| Comando | Cuándo | Archivo | Descripción |
+|---|---|---|---|
+| `CTO_GENERAR_CONTEOS` | Después del paso 2, antes del paso 3 | `GenerarConteosCommand.cs` | Asocia cada INSERT de la capa `PropertyLayerName` (`PROPIEDAD_Servicio`) a su segmento con la misma técnica del paso 1 (manzana más cercana → normal → raycast ortogonal → filtro anti-cruce, reusando `PoleSegmentAssociator`). Escribe XData `ID_SEGMENT` y `VIVIENDAS` en cada propiedad, suma por segmento e inserta un bloque `CONT_HP` en el midpoint (por longitud de arco) con `SDU` = suma y `MDU` = 0, rotado al ángulo legible del eje. Dibuja spiders segmento→propiedad en `CTO_SPIDER_CONTEO`. Solo genera donde la suma es > 0. |
+| `CTO_SPIDERS_ACOMETIDA` | Después del paso 5 | `SpidersAcometidaCommand.cs` | Reparte las propiedades entre las cajas desplegadas con cupo de `BoxCapacityHp` HP por caja (default 8) y dibuja el spider propiedad→caja en `CTO_SPIDER_ACOMETIDA`. Valida 3 precondiciones antes de escribir nada: que existan cajas desplegadas, que las cajas tengan XData `ID_SEGMENT`, y que las propiedades estén asociadas (correr `CTO_GENERAR_CONTEOS` antes). |
+
+### Capas de spiders
+
+| Capa | Color | Contenido |
+|---|---|---|
+| `CTO_SPIDER_CONTEO` | 4 (cian) | Líneas segmento (midpoint) → propiedad, generadas por `CTO_GENERAR_CONTEOS`. |
+| `CTO_SPIDER_ACOMETIDA` | 3 (verde) | Líneas propiedad → caja asignada, generadas por `CTO_SPIDERS_ACOMETIDA`. Las propiedades que exceden el cupo se dibujan en color 1 (rojo), en la misma capa. |
+
 ## UI / diagnóstico
 
 | Comando | Archivo | Descripción |
@@ -50,6 +68,9 @@ Configuración en `Models/AddinSettings.cs` (singleton `AddinSettings.Current`):
 - `CtoLayerNameCrec` — capa para bloques C (default: `CAJA ACCESO b-PR`).
 - `PoleLayerName` — layer del cual `SelectionService` filtra postes. Configurable en runtime.
 - `ObservationCodes` — lista de códigos que empujan un poste al final del ranking PRIORIDAD. Ver semilla en `docs/especificacion.md` §9.
+- `PropertyLayerName` — capa de propiedades de servicio para `CTO_GENERAR_CONTEOS` (default: `PROPIEDAD_Servicio`).
+- `PropertyCountTags` — tags de atributo a buscar para contar viviendas por propiedad (default: `CANT, CANTIDAD, VIVIENDAS, UNIDADES, NUM_HP`).
+- `BoxCapacityHp` — cupo máximo de HP por caja en `CTO_SPIDERS_ACOMETIDA` (default: `8`).
 
 | Comando | Archivo | Descripción |
 |---|---|---|

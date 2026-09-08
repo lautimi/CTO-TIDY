@@ -213,7 +213,7 @@ namespace Koovra.Cto.AutocadAddin.Services
         /// dentro de <see cref="HpToSegmentMaxRadius"/> metros.
         /// Devuelve null si ninguno está dentro del radio.
         /// </summary>
-        private static string FindNearestSegmentHandle(
+        internal static string FindNearestSegmentHandle(
             Transaction        tr,
             Point3d            point,
             ObjectIdCollection segmentIds)

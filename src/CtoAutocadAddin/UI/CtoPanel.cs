@@ -381,6 +381,64 @@ namespace Koovra.Cto.AutocadAddin.UI
                 btnInspect.Location = new Point(8, 6);
             };
 
+            // ── Herramientas opcionales (Dock=Top) ───────────────────────────
+            // No forman parte del flujo 1→5: "Ejecutar Todo" no las corre.
+            var btnConteos = new FuturisticTheme.SecondaryButton
+            {
+                Text = "Generar conteos HP (propiedades)",
+                Font = new WinFont(FuturisticTheme.PrimaryFontFamily, 8.5f, FontStyle.Bold),
+            };
+            btnConteos.Click += (s, e) =>
+            {
+                var doc = AcApp.DocumentManager.MdiActiveDocument;
+                doc?.SendStringToExecute("CTO_GENERAR_CONTEOS ", true, false, false);
+            };
+
+            var pConteos = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 40,
+                BackColor = FuturisticTheme.BgBase,
+            };
+            pConteos.Controls.Add(btnConteos);
+            btnConteos.Dock = DockStyle.None;
+            btnConteos.Size = new Size(pConteos.Width - 16, 28);
+            btnConteos.Location = new Point(8, 6);
+            btnConteos.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            pConteos.Resize += (s, e) =>
+            {
+                btnConteos.Size     = new Size(pConteos.Width - 16, 28);
+                btnConteos.Location = new Point(8, 6);
+            };
+
+            var btnSpiders = new FuturisticTheme.SecondaryButton
+            {
+                Text = "Spiders → cajas",
+                Font = new WinFont(FuturisticTheme.PrimaryFontFamily, 8.5f, FontStyle.Bold),
+            };
+            btnSpiders.Click += (s, e) =>
+            {
+                var doc = AcApp.DocumentManager.MdiActiveDocument;
+                doc?.SendStringToExecute("CTO_SPIDERS_ACOMETIDA ", true, false, false);
+            };
+
+            var pSpiders = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 40,
+                BackColor = FuturisticTheme.BgBase,
+            };
+            pSpiders.Controls.Add(btnSpiders);
+            btnSpiders.Dock = DockStyle.None;
+            btnSpiders.Size = new Size(pSpiders.Width - 16, 28);
+            btnSpiders.Location = new Point(8, 6);
+            btnSpiders.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            pSpiders.Resize += (s, e) =>
+            {
+                btnSpiders.Size     = new Size(pSpiders.Width - 16, 28);
+                btnSpiders.Location = new Point(8, 6);
+            };
+
             // ── Radio buffer (Dock=Top) ──────────────────────────────────────
             var pRadius = new Panel
             {
@@ -495,6 +553,8 @@ namespace Koovra.Cto.AutocadAddin.UI
             Controls.Add(pRunAll);
             Controls.Add(pConfig);
             Controls.Add(pInspect);
+            Controls.Add(pSpiders);
+            Controls.Add(pConteos);
             Controls.Add(pRadius);
             Controls.Add(_rowDesplegar);
             Controls.Add(_rowCalcular);
@@ -986,7 +1046,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                         }
 
                         int[] hpOvfSlice = HpDistributor.Distribute(hpOvf, ovfD);
-                        int placed = dep.DeployAtPoint(tr, doc.Database, midPt, ovfD, ovfC, hpOvfSlice, odQueue, rotOvf);
+                        int placed = dep.DeployAtPoint(tr, doc.Database, midPt, ovfD, ovfC, hpOvfSlice, odQueue, rotOvf, segIdOvf);
                         if (placed > 0) dep.DrawAlertCircle(tr, doc.Database, midPt);
                         AppendLog($"Overflow seg {segIdOvf.Substring(0, Math.Min(segIdOvf.Length, 6))}: " +
                                   $"{ovfD}D+{ovfC}C → midpoint ({midPt.X:F0},{midPt.Y:F0}) rot={rotOvf:F2} placed={placed}.",
@@ -1032,7 +1092,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                         {
                             int[] hpSlice = HpDistributor.Distribute(hpBlock.Hp, r.CDesp);
                             int placed2 = dep.DeployAtPoint(tr, doc.Database, insertPt,
-                                r.CDesp, r.CCrec, hpSlice, odQueue, hpBlock.Rotation);
+                                r.CDesp, r.CCrec, hpSlice, odQueue, hpBlock.Rotation, hpBlock.SegmentId);
                             if (placed2 > 0) dep.DrawAlertCircle(tr, doc.Database, insertPt);
                             total += placed2;
                             AppendLog($"Sin postes: HP={hpBlock.Hp} seg={hpBlock.SegmentId?.Substring(0, Math.Min(hpBlock.SegmentId?.Length ?? 0, 6))} → " +

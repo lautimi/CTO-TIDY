@@ -30,6 +30,15 @@ namespace Koovra.Cto.AutocadAddin.Models
         // No persiste entre sesiones.
         public List<string> ObservationCodes { get; set; } = BuildDefaultActiveCodes();
 
+        // Capa donde se buscan las propiedades servicio (CTO_GENERAR_CONTEOS).
+        public string PropertyLayerName { get; set; } = "PROPIEDAD_Servicio";
+
+        // Tags de atributo que, si existen en el bloque de propiedad, indican la cantidad de viviendas.
+        public List<string> PropertyCountTags { get; set; } = BuildDefaultPropertyCountTags();
+
+        // Cupo de HP por caja usado por el reparto de CTO_SPIDERS_ACOMETIDA.
+        public int BoxCapacityHp { get; set; } = 8;
+
         public static List<string> BuildDefaultPoleLayerNames()
         {
             return new List<string> { "POSTE_*" };
@@ -50,10 +59,18 @@ namespace Koovra.Cto.AutocadAddin.Models
             return new List<string> { "VEG", "OCUPADO", "APOYO", "INCLINADO", "MALO" };
         }
 
+        public static List<string> BuildDefaultPropertyCountTags()
+        {
+            return new List<string> { "CANT", "CANTIDAD", "VIVIENDAS", "UNIDADES", "NUM_HP" };
+        }
+
         public void ResetToDefaults()
         {
-            PoleLayerNames   = BuildDefaultPoleLayerNames();
-            ObservationCodes = BuildDefaultActiveCodes();
+            PoleLayerNames     = BuildDefaultPoleLayerNames();
+            ObservationCodes   = BuildDefaultActiveCodes();
+            PropertyLayerName  = "PROPIEDAD_Servicio";
+            PropertyCountTags  = BuildDefaultPropertyCountTags();
+            BoxCapacityHp      = 8;
         }
     }
 }
