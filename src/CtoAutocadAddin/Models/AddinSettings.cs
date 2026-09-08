@@ -28,7 +28,7 @@ namespace Koovra.Cto.AutocadAddin.Models
 
         // Códigos que, si aparecen en COMENTARIOS de un poste, lo empujan al final del ranking PRIORIDAD.
         // No persiste entre sesiones.
-        public List<string> ObservationCodes { get; set; } = BuildDefaultObservationCodes();
+        public List<string> ObservationCodes { get; set; } = BuildDefaultActiveCodes();
 
         // Capa donde se buscan las propiedades servicio (CTO_GENERAR_CONTEOS).
         public string PropertyLayerName { get; set; } = "PROPIEDAD_Servicio";
@@ -54,6 +54,11 @@ namespace Koovra.Cto.AutocadAddin.Models
             };
         }
 
+        public static List<string> BuildDefaultActiveCodes()
+        {
+            return new List<string> { "VEG", "OCUPADO", "APOYO", "INCLINADO", "MALO" };
+        }
+
         public static List<string> BuildDefaultPropertyCountTags()
         {
             return new List<string> { "CANT", "CANTIDAD", "VIVIENDAS", "UNIDADES", "NUM_HP" };
@@ -62,7 +67,7 @@ namespace Koovra.Cto.AutocadAddin.Models
         public void ResetToDefaults()
         {
             PoleLayerNames     = BuildDefaultPoleLayerNames();
-            ObservationCodes   = BuildDefaultObservationCodes();
+            ObservationCodes   = BuildDefaultActiveCodes();
             PropertyLayerName  = "PROPIEDAD_Servicio";
             PropertyCountTags  = BuildDefaultPropertyCountTags();
             BoxCapacityHp      = 8;

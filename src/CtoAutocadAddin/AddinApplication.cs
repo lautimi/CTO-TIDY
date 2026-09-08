@@ -7,6 +7,10 @@ namespace Koovra.Cto.AutocadAddin
         public void Initialize()
         {
             System.AppDomain.CurrentDomain.AssemblyResolve += ResolveCore;
+            System.Windows.Forms.Application.ThreadException += (s, args) =>
+            {
+                Infrastructure.AcadLogger.Warn("WinForms ThreadException: " + args.Exception.Message);
+            };
         }
 
         public void Terminate()

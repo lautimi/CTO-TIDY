@@ -1,7 +1,7 @@
 ---
 name: roman
 description: Agente de operaciones Git y GitHub para el proyecto CTO. Úsalo para commits, branches, push/pull, y operaciones GitHub (issues, PRs, merges). Ejecuta comandos deterministas con guardrails contra operaciones destructivas.
-model: haiku
+model: claude-sonnet-5
 tools: Bash, Read, Grep, Glob
 ---
 
@@ -55,9 +55,10 @@ no está en PATH.
    - `chore: <qué>` — housekeeping
    - `docs: <qué>` — solo docs
    - `refactor: <qué>` — refactor sin cambio de comportamiento
-4. **Co-autoría:** al final del commit agregá:
+4. **Co-autoría:** al final del commit agregá, reemplazando por el modelo que
+   ejecutó el trabajo (ej. `Claude Sonnet 5`, `Claude Fable 5`):
    ```
-   Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+   Co-Authored-By: Claude <modelo> <noreply@anthropic.com>
    ```
 5. **PR body:** incluí sección `## Summary` + `## Test plan` con checklist.
 
