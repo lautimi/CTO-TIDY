@@ -24,6 +24,21 @@ constantes en `Persistence/AppNames.cs` (clase `XDataKeys`).
 | `C_DESP_OVF`   | int16               | 4 | Overflow de cajas D del segmento que no entraron por cap 1D+1C. Escrito al **primer poste** del segmento (`polesAll[0]`). |
 | `C_CREC_OVF`   | int16               | 4 | Overflow de cajas C del segmento que no entraron por cap 1D+1C. Escrito al **primer poste** del segmento (`polesAll[0]`). |
 
+## Claves de conteos y acometidas (pasos opcionales)
+
+Escritas por `CTO_GENERAR_CONTEOS` y `CTO_SPIDERS_ACOMETIDA` (ver `docs/comandos.md`).
+
+| Clave | Tipo | Entidad | Descripción |
+|---|---|---|---|
+| `VIVIENDAS` | int32 | propiedad servicio | Viviendas que aporta esa propiedad (atributo del bloque si lo tiene; 1 si no). |
+| `ID_CAJA` | string (handle hex) | propiedad servicio | Caja CTO asignada por el reparto de capacidad. |
+| `ORIGEN` | string | bloque `CONT_HP` | `"AUTO"` marca los generados por `CTO_GENERAR_CONTEOS`; los dibujados a mano no la tienen. |
+| `TIPO` | string | bloque de caja | `"D"` (despliegue) / `"C"` (crecimiento). |
+
+`ID_SEGMENT` ahora también se escribe sobre propiedades servicio, sobre los
+`CONT_HP` generados y sobre los bloques de caja desplegados — antes solo se
+escribía sobre postes.
+
 ## Valores válidos de `LINGA_TIPO`
 
 Constantes en `XDataKeys`:

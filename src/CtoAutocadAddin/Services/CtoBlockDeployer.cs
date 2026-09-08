@@ -117,6 +117,8 @@ namespace Koovra.Cto.AutocadAddin.Services
             int cCrec = XDataManager.GetInt(tr, poleId, XDataKeys.C_CREC) ?? 0;
             if (cDesp + cCrec <= 0) return 0;
 
+            string segHandleHex = XDataManager.GetString(tr, poleId, XDataKeys.ID_SEGMENT);
+
             Entity poleEnt = tr.GetObject(poleId, OpenMode.ForRead) as Entity;
             if (poleEnt == null) return 0;
             Point3d polePoint = Extensions.GetInsertionOrPosition(poleEnt);
@@ -149,7 +151,8 @@ namespace Koovra.Cto.AutocadAddin.Services
                 if (d > 0)
                 {
                     ObjectId newId = InsertBlock(tr, ms, defIdDesp, polePoint,
-                                                 angles.displayAngle, angles.offsetAngle, slot, 0.0, _layerNameDesp);
+                                                 angles.displayAngle, angles.offsetAngle, slot, 0.0, _layerNameDesp,
+                                                 segHandleHex, XDataKeys.TIPO_DESP);
                     if (!newId.IsNull)
                     {
                         int hp = (hpPorDespliegue != null && dIdx < hpPorDespliegue.Length)
@@ -167,7 +170,8 @@ namespace Koovra.Cto.AutocadAddin.Services
                 {
                     double extraY = esPar1D1C ? GeometryConstants.CTO_CREC_OFFSET_ADICIONAL : 0.0;
                     ObjectId newId = InsertBlock(tr, ms, defIdCrec, polePoint,
-                                                 angles.displayAngle, angles.offsetAngle, slot, extraY, _layerNameCrec);
+                                                 angles.displayAngle, angles.offsetAngle, slot, extraY, _layerNameCrec,
+                                                 segHandleHex, XDataKeys.TIPO_CREC);
                     if (!newId.IsNull && odQueue != null)
                         odQueue.Add(System.Tuple.Create(newId, 0));
                     inserted++;
@@ -183,7 +187,8 @@ namespace Koovra.Cto.AutocadAddin.Services
             int cDesp, int cCrec,
             int[] hpPorDespliegue = null,
             System.Collections.Generic.List<System.Tuple<ObjectId, int>> odQueue = null,
-            double rotation = 0.0)
+            double rotation = 0.0,
+            string segHandleHex = null)
         {
             if (cDesp + cCrec <= 0) return 0;
 
@@ -213,7 +218,8 @@ namespace Koovra.Cto.AutocadAddin.Services
             {
                 if (d > 0)
                 {
-                    ObjectId newId = InsertBlock(tr, ms, defIdDesp, point, rotation, rotation, slot, 0.0, _layerNameDesp);
+                    ObjectId newId = InsertBlock(tr, ms, defIdDesp, point, rotation, rotation, slot, 0.0, _layerNameDesp,
+                                                 segHandleHex, XDataKeys.TIPO_DESP);
                     if (!newId.IsNull)
                     {
                         int hp = (hpPorDespliegue != null && dIdx < hpPorDespliegue.Length)
@@ -229,7 +235,8 @@ namespace Koovra.Cto.AutocadAddin.Services
                 if (c > 0)
                 {
                     double extraY = esPar1D1C ? GeometryConstants.CTO_CREC_OFFSET_ADICIONAL : 0.0;
-                    ObjectId newId = InsertBlock(tr, ms, defIdCrec, point, rotation, rotation, slot, extraY, _layerNameCrec);
+                    ObjectId newId = InsertBlock(tr, ms, defIdCrec, point, rotation, rotation, slot, extraY, _layerNameCrec,
+                                                 segHandleHex, XDataKeys.TIPO_CREC);
                     if (!newId.IsNull && odQueue != null)
                         odQueue.Add(System.Tuple.Create(newId, 0));
                     inserted++;
@@ -246,7 +253,8 @@ namespace Koovra.Cto.AutocadAddin.Services
         private ObjectId InsertBlock(Transaction tr, BlockTableRecord ms,
                                  ObjectId defId, Point3d polePoint,
                                  double displayAngle, double offsetAngle, int slot,
-                                 double extraOffsetY, string layerName)
+                                 double extraOffsetY, string layerName,
+                                 string segHandleHex, string tipo)
         {
             // offsetAngle controla hacia qué lado va el bloque (vereda correcta).
             // displayAngle controla la rotación visual (texto legible).
@@ -263,6 +271,13 @@ namespace Koovra.Cto.AutocadAddin.Services
                 br.Layer    = layerName;
                 ms.AppendEntity(br);
                 tr.AddNewlyCreatedDBObject(br, true);
+
+                XDataManager.SetValues(tr, br.ObjectId, new (string, object)[]
+                {
+                    (XDataKeys.ID_SEGMENT, segHandleHex ?? string.Empty),
+                    (XDataKeys.TIPO,       tipo ?? string.Empty),
+                });
+
                 return br.ObjectId;
             }
         }
@@ -299,13 +314,29 @@ namespace Koovra.Cto.AutocadAddin.Services
 
             // displayAngle: clampeado para legibilidad. El clamping puede girar 180° el ángulo
             // visual, pero NO afecta offsetAngle, con lo que el offset sigue siendo correcto.
+            double displayAngle = ClampToReadable(offsetAngle);
+
+            return (displayAngle, offsetAngle);
+        }
+
+        /// <summary>
+        /// Clampea un ángulo al rango legible [0°,90°] ∪ [270°,360°] para que el texto
+        /// del bloque no quede cabeza abajo. No altera la geometría, solo la lectura.
+        /// </summary>
+        public static double ClampToReadable(double angleRad)
+        {
             const double TwoPi = 2.0 * Math.PI;
-            double displayAngle = ((offsetAngle % TwoPi) + TwoPi) % TwoPi;
+            double displayAngle = ((angleRad % TwoPi) + TwoPi) % TwoPi;
             if (displayAngle > Math.PI / 2.0 && displayAngle < 3.0 * Math.PI / 2.0)
                 displayAngle += Math.PI;
             displayAngle = ((displayAngle % TwoPi) + TwoPi) % TwoPi;
+            return displayAngle;
+        }
 
-            return (displayAngle, offsetAngle);
+        /// <summary>Ángulo legible a partir de un vector dirección (eje de calle).</summary>
+        public static double ComputeReadableAngle(Vector3d dir)
+        {
+            return ClampToReadable(Math.Atan2(dir.Y, dir.X));
         }
 
         private static Curve ResolveCurve(Transaction tr, Database db, string handleHex)

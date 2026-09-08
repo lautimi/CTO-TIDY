@@ -24,3 +24,5 @@ using Autodesk.AutoCAD.Runtime;
 [assembly: CommandClass(typeof(Koovra.Cto.AutocadAddin.Commands.InspeccionarPosteCommand))]
 [assembly: CommandClass(typeof(Koovra.Cto.AutocadAddin.Commands.DumpCallesCommand))]
 [assembly: CommandClass(typeof(Koovra.Cto.AutocadAddin.Commands.DumpEsquinasCommand))]
+[assembly: CommandClass(typeof(Koovra.Cto.AutocadAddin.Commands.GenerarConteosCommand))]
+[assembly: CommandClass(typeof(Koovra.Cto.AutocadAddin.Commands.SpidersAcometidaCommand))]

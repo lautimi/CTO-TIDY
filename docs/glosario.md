@@ -29,3 +29,7 @@ Términos del dominio CTO / FTTH que aparecen en la spec, código y comentarios.
 | **Overflow (OVF)** | Cajas D o C de un segmento que no pudieron asignarse a ningún poste por el cap 1D+1C. Se almacenan en `C_DESP_OVF`/`C_CREC_OVF` al primer poste del segmento y se despliegan al midpoint en el paso 5. |
 | **Midpoint deploy** | Inserción de cajas overflow (o de segmentos sin postes seleccionados) en el punto medio de la curva del segmento, con la rotación del bloque CONT_HP. Acompañado de un círculo de alerta. |
 | **Círculo de alerta** | Círculo dibujado en la capa "0" con radio `CTO_ALERT_CIRCLE_RADIUS = 10m` en el midpoint del segmento, indicando que las cajas fueron insertadas fuera de un poste real. Es idempotente (se purga antes de cada deploy). |
+| **Propiedad servicio** | Entidad del relevamiento en la capa `PROPIEDAD_Servicio`: bloques `VIVIENDA`/`COMERCIO`, uno por vivienda o lote. Input crudo del que `CTO_GENERAR_CONTEOS` deriva el HP de cada segmento. |
+| **Spider de conteo** | Línea desde el midpoint del segmento hasta una propiedad, dibujada por `CTO_GENERAR_CONTEOS` en `CTO_SPIDER_CONTEO`. Trazabilidad de qué propiedades alimentan cada `CONT_HP` generado. |
+| **Spider de acometida** | Línea desde una propiedad hasta la caja que le fue asignada, dibujada por `CTO_SPIDERS_ACOMETIDA` en `CTO_SPIDER_ACOMETIDA`. |
+| **Cupo** | Cantidad máxima de HP (viviendas) que puede recibir una caja en el reparto de acometidas. Default `BoxCapacityHp = 8`. |

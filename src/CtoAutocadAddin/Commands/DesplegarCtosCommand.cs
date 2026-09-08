@@ -145,7 +145,8 @@ namespace Koovra.Cto.AutocadAddin.Commands
                     }
 
                     int[] hpOvfSlice = HpDistributor.Distribute(hpOvf, ovfD);
-                    int placed = deployer.DeployAtPoint(tr, db, midPt, ovfD, ovfC, hpOvfSlice, odQueue);
+                    int placed = deployer.DeployAtPoint(tr, db, midPt, ovfD, ovfC, hpOvfSlice, odQueue,
+                        segHandleHex: segIdOvf);
                     if (placed > 0) deployer.DrawAlertCircle(tr, db, midPt);
                     AcadLogger.Info($"Overflow seg {segIdOvf.Substring(0, Math.Min(segIdOvf.Length, 6))}: " +
                                     $"{ovfD}D+{ovfC}C → midpoint ({midPt.X:F0},{midPt.Y:F0}) placed={placed}.");
@@ -213,7 +214,7 @@ namespace Koovra.Cto.AutocadAddin.Commands
                         {
                             int[] hpSlice = HpDistributor.Distribute(hpBlock.Hp, r.CDesp);
                             int placed2 = deployer.DeployAtPoint(tr, db, insertPt,
-                                r.CDesp, r.CCrec, hpSlice, odQueue, hpBlock.Rotation);
+                                r.CDesp, r.CCrec, hpSlice, odQueue, hpBlock.Rotation, hpBlock.SegmentId);
                             if (placed2 > 0) deployer.DrawAlertCircle(tr, db, insertPt);
                             total += placed2;
                             AcadLogger.Info($"Sin postes: HP={hpBlock.Hp} seg={hpBlock.SegmentId?.Substring(0, Math.Min(hpBlock.SegmentId?.Length ?? 0, 6))} → {r.CDesp}D+{r.CCrec}C en midpoint ({insertPt.X:F0},{insertPt.Y:F0}) rot={hpBlock.Rotation:F2} placed={placed2}.");

@@ -273,6 +273,9 @@ namespace Koovra.Cto.AutocadAddin.UI
             AddRow(36);  // radio
             AddRow(34);  // inspeccionar
             AddRow(34);  // configuración
+            AddRow(20);  // separador herramientas opcionales
+            AddRow(34);  // generar conteos hp
+            AddRow(34);  // spiders -> cajas
             AddRow(42);  // run all
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // log
 
@@ -386,6 +389,51 @@ namespace Koovra.Cto.AutocadAddin.UI
             };
             layout.Controls.Add(btnConfig, 0, 8);
 
+            // ── Herramientas opcionales (no forman parte de los pasos 1→5) ────
+            var lblOptional = new Label
+            {
+                Text      = "Herramientas opcionales",
+                ForeColor = FuturisticTheme.TextSecondary,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(8, 0, 0, 0),
+                Font      = new WinFont("Segoe UI", 7.5f, FontStyle.Italic),
+            };
+            lblOptional.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(FuturisticTheme.BorderSubtle))
+                    e.Graphics.DrawLine(pen, 0, 0, lblOptional.Width, 0);
+            };
+            layout.Controls.Add(lblOptional, 0, 9);
+
+            var btnGenerarConteos = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Secondary)
+            {
+                Text   = "Generar conteos HP",
+                Dock   = DockStyle.Fill,
+                Margin = new Padding(8, 2, 8, 2),
+                Font   = new WinFont("Segoe UI", 8.5f, FontStyle.Bold),
+            };
+            btnGenerarConteos.Click += (s, e) =>
+            {
+                var doc = AcApp.DocumentManager.MdiActiveDocument;
+                doc?.SendStringToExecute("CTO_GENERAR_CONTEOS ", true, false, false);
+            };
+            layout.Controls.Add(btnGenerarConteos, 0, 10);
+
+            var btnSpidersAcometida = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Secondary)
+            {
+                Text   = "Spiders → cajas",
+                Dock   = DockStyle.Fill,
+                Margin = new Padding(8, 2, 8, 2),
+                Font   = new WinFont("Segoe UI", 8.5f, FontStyle.Bold),
+            };
+            btnSpidersAcometida.Click += (s, e) =>
+            {
+                var doc = AcApp.DocumentManager.MdiActiveDocument;
+                doc?.SendStringToExecute("CTO_SPIDERS_ACOMETIDA ", true, false, false);
+            };
+            layout.Controls.Add(btnSpidersAcometida, 0, 11);
+
             // ── Ejecutar Todo ────────────────────────────────────────────────
             _btnRunAll = new FuturisticTheme.BtnFuturista(FuturisticTheme.BtnStyle.Primary)
             {
@@ -399,7 +447,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 Color.FromArgb(0x00, 0xC8, 0x96),
                 Color.FromArgb(0x00, 0xA8, 0x7D));
             _btnRunAll.Click += (s, e) => RunAll();
-            layout.Controls.Add(_btnRunAll, 0, 9);
+            layout.Controls.Add(_btnRunAll, 0, 12);
 
             // ── Log ──────────────────────────────────────────────────────────
             _log = new RichTextBox
@@ -412,7 +460,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                 ScrollBars  = RichTextBoxScrollBars.Vertical,
                 BorderStyle = BorderStyle.None,
             };
-            layout.Controls.Add(_log, 0, 10);
+            layout.Controls.Add(_log, 0, 13);
 
             // ── Warnings panel (postes en esquina) ──────────────────────────
             _warningHeader = new Label
@@ -919,7 +967,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                         }
 
                         int[] hpOvfSlice = HpDistributor.Distribute(hpOvf, ovfD);
-                        int placed = dep.DeployAtPoint(tr, doc.Database, midPt, ovfD, ovfC, hpOvfSlice, odQueue, rotOvf);
+                        int placed = dep.DeployAtPoint(tr, doc.Database, midPt, ovfD, ovfC, hpOvfSlice, odQueue, rotOvf, segIdOvf);
                         if (placed > 0) dep.DrawAlertCircle(tr, doc.Database, midPt);
                         AppendLog($"Overflow seg {segIdOvf.Substring(0, Math.Min(segIdOvf.Length, 6))}: " +
                                   $"{ovfD}D+{ovfC}C → midpoint ({midPt.X:F0},{midPt.Y:F0}) rot={rotOvf:F2} placed={placed}.",
@@ -965,7 +1013,7 @@ namespace Koovra.Cto.AutocadAddin.UI
                         {
                             int[] hpSlice = HpDistributor.Distribute(hpBlock.Hp, r.CDesp);
                             int placed2 = dep.DeployAtPoint(tr, doc.Database, insertPt,
-                                r.CDesp, r.CCrec, hpSlice, odQueue, hpBlock.Rotation);
+                                r.CDesp, r.CCrec, hpSlice, odQueue, hpBlock.Rotation, hpBlock.SegmentId);
                             if (placed2 > 0) dep.DrawAlertCircle(tr, doc.Database, insertPt);
                             total += placed2;
                             AppendLog($"Sin postes: HP={hpBlock.Hp} seg={hpBlock.SegmentId?.Substring(0, Math.Min(hpBlock.SegmentId?.Length ?? 0, 6))} → " +
